@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สมัครสมาชิก — ระบบวัดต้นไม้</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#F0EDE4;
+    --panel:#FFFFFF;
+    --ink:#1A2332;
+    --ink-soft:#5A6577;
+    --forest:#2D7A4F;
+    --forest-deep:#1B5E3A;
+    --forest-light:#E8F5EE;
+    --forest-glow:rgba(45,122,79,0.15);
+    --bark:#9B7A3E;
+    --bark-light:#F5EFE0;
+    --line:#E2DDD0;
+    --ok:#2D7A4F;
+    --err:#C0392B;
+    --err-light:#FDE8E8;
+    --ok-light:#E8F5EE;
+    --radius:14px;
+    --shadow-sm:0 1px 3px rgba(26,35,50,0.06);
+    --shadow-md:0 4px 16px rgba(26,35,50,0.08);
+    --shadow-lg:0 8px 32px rgba(26,35,50,0.12);
+    --shadow-focus:0 0 0 4px rgba(45,122,79,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(26,35,50,0.04) 1px, transparent 0);
+    background-size:24px 24px;
+    color:var(--ink);
+    font-family:'Noto Sans Thai','Space Grotesk',sans-serif;
+    min-height:100vh;
+    padding-bottom:80px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===== HEADER ===== */
+  header{
+    padding:48px 20px 24px;
+    max-width:520px;
+    margin:0 auto;
+    text-align:center;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.15em;
+    color:var(--bark);
+    text-transform:uppercase;
+    margin-bottom:12px;
+    font-weight:500;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:28px;
+    font-weight:700;
+    margin:0 0 10px;
+    color:var(--forest-deep);
+    line-height:1.2;
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:14.5px;
+    line-height:1.6;
+    margin:0 auto;
+    max-width:420px;
+  }
+
+  /* ===== BACK LINK ===== */
+  .back-link-wrap{
+    max-width:520px;
+    margin:16px auto 0;
+    padding:0 20px;
+    text-align:center;
+  }
+  .back-link{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:11px 20px;
+    border-radius:10px;
+    background:transparent;
+    border:1.5px solid var(--line);
+    color:var(--ink-soft);
+    font-weight:600;
+    font-size:14px;
+    text-decoration:none;
+    transition:all .2s;
+  }
+  .back-link:hover{
+    border-color:var(--forest);
+    color:var(--forest);
+  }
+
+  /* ===== CONFIG ===== */
+  .config{
+    max-width:520px;
+    margin:20px auto 8px;
+    padding:18px 20px;
+  }
+  .config summary{
+    cursor:pointer;
+    font-size:13px;
+    color:var(--ink-soft);
+    font-family:'JetBrains Mono',monospace;
+    font-weight:500;
+    padding:6px 0;
+  }
+  .config summary:hover{ color:var(--forest); }
+  .config-body{
+    margin-top:16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:16px;
+    background:var(--paper);
+    border-radius:10px;
+    border:1px dashed var(--line);
+  }
+
+  /* ===== MAIN ===== */
+  main{
+    max-width:520px;
+    margin:0 auto;
+    padding:0 20px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  /* ===== CARDS ===== */
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:30px;
+    position:relative;
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .2s, transform .2s;
+    animation:cardIn .4s ease-out both;
+  }
+  .card:hover{ box-shadow:var(--shadow-md); }
+  @keyframes cardIn{
+    from{ opacity:0; transform:translateY(12px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .step-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:19px;
+    color:var(--forest-deep);
+  }
+
+  /* ===== FORM ELEMENTS ===== */
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:7px;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:500;
+    letter-spacing:0.02em;
+  }
+  input[type=text], input[type=email], input[type=password]{
+    width:100%;
+    padding:12px 14px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    font-size:15px;
+    font-family:'Noto Sans Thai',sans-serif;
+    background:linear-gradient(135deg, #FDFCFA, #F8F6F0);
+    color:var(--ink);
+    transition:border-color .2s, box-shadow .2s, background .2s;
+    outline:none;
+  }
+  input:hover{ border-color:#C5BFA8; }
+  input:focus{
+    border-color:var(--forest);
+    box-shadow:var(--shadow-focus);
+    background:#fff;
+  }
+  input:disabled{
+    background:#ECEAE3;
+    color:#A6A6A0;
+    cursor:not-allowed;
+    border-color:#DDD8CC;
+  }
+
+  .field{ margin-bottom:16px; }
+  .hint{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:6px;
+    line-height:1.5;
+  }
+  .hint.err{ color:var(--err); }
+  .hint.ok{ color:var(--ok); }
+
+  /* ===== BUTTONS ===== */
+  .btn-small{
+    padding:0 16px;
+    height:40px;
+    border-radius:10px;
+    border:1.5px solid var(--forest);
+    background:transparent;
+    color:var(--forest);
+    font-size:13px;
+    font-weight:600;
+    font-family:'Space Grotesk',sans-serif;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .2s;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .btn-small:hover{
+    background:var(--forest);
+    color:#fff;
+    box-shadow:0 2px 8px rgba(45,122,79,0.25);
+    transform:translateY(-1px);
+  }
+  .btn-small:active{ transform:translateY(0); }
+
+  .btn-submit{
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:12px;
+    background:linear-gradient(135deg, var(--forest), var(--forest-deep));
+    color:#fff;
+    font-size:16px;
+    font-weight:600;
+    font-family:'Space Grotesk',sans-serif;
+    cursor:pointer;
+    margin-top:8px;
+    transition:all .2s;
+    box-shadow:0 3px 12px rgba(45,122,79,0.3);
+    letter-spacing:0.02em;
+  }
+  .btn-submit:hover{
+    transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(45,122,79,0.4);
+  }
+  .btn-submit:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(45,122,79,0.3); }
+  .btn-submit:disabled{
+    background:linear-gradient(135deg, #B7C4B9, #A8B5AA);
+    cursor:not-allowed;
+    box-shadow:none;
+    transform:none;
+  }
+
+  /* ===== MESSAGES ===== */
+  .msg{
+    font-size:13px;
+    padding:12px 14px;
+    border-radius:10px;
+    margin-top:14px;
+    display:none;
+    font-weight:500;
+    line-height:1.5;
+  }
+  .msg.show{ display:flex; align-items:flex-start; gap:8px; }
+  .msg.ok{ background:var(--ok-light); color:var(--ok); border:1px solid rgba(45,122,79,0.2); }
+  .msg.err{ background:var(--err-light); color:var(--err); border:1px solid rgba(192,57,43,0.2); }
+
+  .switch-link{
+    text-align:center;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+  .switch-link a{
+    color:var(--forest);
+    font-weight:600;
+    text-decoration:underline;
+  }
+
+  .success-box{
+    text-align:center;
+    padding:8px 0 4px;
+  }
+  .success-icon{
+    width:56px;height:56px;
+    border-radius:50%;
+    background:var(--ok-light);
+    color:var(--ok);
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;
+    margin:0 auto 16px;
+  }
+
+  /* ===== DETAILS/EXPAND ===== */
+  details[open] summary{ margin-bottom:8px; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width:640px) {
+    header{ padding:32px 16px 16px; }
+    h1{ font-size:22px; }
+    main{ padding:0 14px; }
+    .card{ padding:22px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Create Account</div>
+  <h1>สมัครสมาชิก</h1>
+  <p class="sub">สร้างบัญชีเพื่อเข้าใช้งานระบบบันทึกภาคสนามและแดชบอร์ด</p>
+</header>
+
+<div class="back-link-wrap">
+  <a href="index.html" class="back-link">← กลับไปหน้าเข้าสู่ระบบ</a>
+</div>
+
+<details class="config" id="configBox">
+  <summary>⚙ ตั้งค่าการเชื่อมต่อ Supabase (กดครั้งแรกเท่านั้น)</summary>
+  <div class="config-body">
+    <div class="field" style="margin-bottom:0;">
+      <label>Project URL</label>
+      <input type="text" id="supaUrl" placeholder="https://xxxxxxxx.supabase.co">
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label>Anon Public Key</label>
+      <input type="text" id="supaKey" placeholder="eyJhbGciOi...">
+    </div>
+    <button class="btn-small" id="connectBtn" style="align-self:flex-start;">เชื่อมต่อ</button>
+    <div class="msg" id="connectMsg"></div>
+  </div>
+</details>
+
+<main>
+
+  <!-- SIGN UP FORM -->
+  <div class="card" id="signupCard">
+    <div class="step-title" style="margin-bottom:20px;">สร้างบัญชีใหม่</div>
+    <form id="signupForm">
+      <div class="field">
+        <label for="regEmail">อีเมล</label>
+        <input type="email" id="regEmail" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="regPassword">รหัสผ่าน</label>
+        <input type="password" id="regPassword" autocomplete="new-password" minlength="6" required>
+        <div class="hint">อย่างน้อย 6 ตัวอักษร</div>
+      </div>
+      <div class="field" style="margin-bottom:8px;">
+        <label for="regPasswordConfirm">ยืนยันรหัสผ่าน</label>
+        <input type="password" id="regPasswordConfirm" autocomplete="new-password" minlength="6" required>
+      </div>
+      <button class="btn-submit" type="submit" id="registerBtn">สมัครสมาชิก</button>
+    </form>
+    <div class="msg" id="signupMsg"></div>
+    <div class="switch-link">มีบัญชีอยู่แล้ว? <a href="index.html">เข้าสู่ระบบ</a></div>
+  </div>
+
+  <!-- SUCCESS STATE (shown after successful signup) -->
+  <div class="card" id="successCard" style="display:none;">
+    <div class="success-box">
+      <div class="success-icon">✓</div>
+      <div class="step-title" style="margin-bottom:8px;">สมัครสมาชิกสำเร็จ</div>
+      <p class="sub" id="successText" style="margin:0 auto 20px;">บัญชีของคุณถูกสร้างเรียบร้อยแล้ว</p>
+      <a href="index.html" class="btn-small" style="text-decoration:none; padding:0 24px;">ไปหน้าเข้าสู่ระบบ →</a>
+    </div>
+  </div>
+
+</main>
+
+<script>
+let supabaseClient = null;
+const $ = (id) => document.getElementById(id);
+
+function showMsg(el, text, type){
+  el.textContent = text;
+  el.className = 'msg show ' + type;
+}
+
+// โหลดค่า config ที่เคยบันทึกไว้ (ใช้ร่วมกับหน้าอื่นในระบบ)
+try{
+  const u = localStorage.getItem('supaUrl');
+  const k = localStorage.getItem('supaKey');
+  if(u) $('supaUrl').value = u;
+  if(k) $('supaKey').value = k;
+  if(u && k){
+    supabaseClient = window.supabase.createClient(u, k);
+    $('configBox').removeAttribute('open');
+  }
+}catch(e){}
+
+$('connectBtn').addEventListener('click', () => {
+  const url = $('supaUrl').value.trim();
+  const key = $('supaKey').value.trim();
+  const msg = $('connectMsg');
+  if(!url || !key){
+    showMsg(msg, 'กรุณากรอก URL และ Key ให้ครบ', 'err');
+    return;
+  }
+  try{
+    supabaseClient = window.supabase.createClient(url, key);
+    try{ localStorage.setItem('supaUrl', url); localStorage.setItem('supaKey', key); }catch(e){}
+    showMsg(msg, '✓ เชื่อมต่อสำเร็จ พร้อมสมัครสมาชิกได้แล้ว', 'ok');
+    $('configBox').removeAttribute('open');
+  }catch(e){
+    showMsg(msg, 'เชื่อมต่อไม่สำเร็จ: ' + e.message, 'err');
+  }
+});
+
+$('signupForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const msg = $('signupMsg');
+  const email = $('regEmail').value.trim();
+  const password = $('regPassword').value;
+  const passwordConfirm = $('regPasswordConfirm').value;
+
+  if(!supabaseClient){
+    showMsg(msg, 'กรุณาเชื่อมต่อ Supabase ก่อน (เปิดเมนู ⚙ ตั้งค่าการเชื่อมต่อด้านบน)', 'err');
+    return;
+  }
+  if(password.length < 6){
+    showMsg(msg, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'err');
+    return;
+  }
+  if(password !== passwordConfirm){
+    showMsg(msg, 'รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน', 'err');
+    return;
+  }
+
+  const btn = $('registerBtn');
+  btn.disabled = true;
+  btn.textContent = 'กำลังสมัครสมาชิก...';
+
+  try{
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if(error) throw error;
+
+    $('signupCard').style.display = 'none';
+    $('successCard').style.display = 'block';
+
+    if(data.session){
+      $('successText').textContent = 'บัญชีของคุณถูกสร้างและเข้าสู่ระบบเรียบร้อยแล้ว สามารถไปยังหน้าเข้าสู่ระบบเพื่อเริ่มใช้งานได้ทันที';
+    }else{
+      $('successText').textContent = 'บัญชีของคุณถูกสร้างเรียบร้อยแล้ว กรุณาตรวจสอบอีเมล (' + email + ') เพื่อยืนยันบัญชีก่อนเข้าสู่ระบบ';
+    }
+  }catch(err){
+    showMsg(msg, 'สมัครสมาชิกไม่สำเร็จ: ' + (err.message || err), 'err');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'สมัครสมาชิก';
+  }
+});
+</script>
+
+</body>
+</html>

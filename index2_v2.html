@@ -217,6 +217,60 @@
       font-weight:500;
     }
 
+    .field{ margin-bottom:14px; }
+
+    /* ===== ROW ACTIONS ===== */
+    .row-actions{ display:flex; gap:8px; flex-wrap:nowrap; }
+    .btn-tiny{
+      padding:6px 12px;
+      border-radius:8px;
+      font-size:12px;
+      font-weight:600;
+      font-family:'Space Grotesk',sans-serif;
+      cursor:pointer;
+      border:1.5px solid var(--forest);
+      background:transparent;
+      color:var(--forest);
+      transition:all .2s;
+      white-space:nowrap;
+    }
+    .btn-tiny:hover{ background:var(--forest); color:#fff; }
+    .btn-tiny.danger{ border-color:var(--err); color:var(--err); }
+    .btn-tiny.danger:hover{ background:var(--err); color:#fff; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay{
+      display:none;
+      position:fixed; inset:0;
+      background:rgba(26,35,50,0.45);
+      align-items:center; justify-content:center;
+      z-index:100;
+      padding:20px;
+    }
+    .modal-overlay.show{ display:flex; }
+    .modal-box{
+      background:var(--panel);
+      border-radius:var(--radius);
+      padding:26px;
+      max-width:420px;
+      width:100%;
+      box-shadow:var(--shadow-lg);
+    }
+    .modal-box h3{
+      margin:0 0 16px;
+      font-family:'Space Grotesk',sans-serif;
+      font-size:17px;
+      color:var(--forest-deep);
+    }
+    .modal-actions{ display:flex; gap:10px; margin-top:6px; }
+    .modal-actions .btn{ flex:1; justify-content:center; }
+    .modal-actions .btn.secondary{
+      background:transparent;
+      color:var(--ink-soft);
+      border:1.5px solid var(--line);
+      box-shadow:none;
+    }
+
     /* ===== RESPONSIVE ===== */
     @media(max-width:700px){
       header{ flex-direction:column; align-items:flex-start; padding:18px 20px; }
@@ -267,6 +321,9 @@
         <button id="loginBtn2" class="btn" type="submit">เข้าสู่ระบบ</button>
         <button id="logoutBtn2" class="btn" type="button" style="display:none">ออกจากระบบ</button>
       </form>
+      <div style="margin-top:10px;">
+        <a href="register.html" style="font-size:13px;color:var(--forest);font-weight:600;text-decoration:underline;">ยังไม่มีบัญชี? สมัครสมาชิก</a>
+      </div>
       <div id="authMsg2" class="msg-text"></div>
     </div>
 
@@ -310,9 +367,33 @@
         <h3 style="margin:0 0 4px; font-family:'Space Grotesk',sans-serif; font-size:17px; color:var(--forest-deep);">รายการการวัดล่าสุด</h3>
         <div class="muted" style="margin-bottom:4px;">แถวบนสุดคือรายการล่าสุด</div>
         <table>
-          <thead><tr><th>เวลา/วันที่</th><th>หมายเลขต้น</th><th>ชื่อต้น</th><th>ความสูง (ม.)</th><th>เส้นรอบวง (ซม.)</th></tr></thead>
-          <tbody id="measureTable"><tr><td colspan="5" class="muted">ยังไม่ได้เชื่อมต่อหรือไม่มีข้อมูล</td></tr></tbody>
+          <thead><tr><th>เวลา/วันที่</th><th>หมายเลขต้น</th><th>ชื่อต้น</th><th>ความสูง (ม.)</th><th>เส้นรอบวง (ซม.)</th><th>จัดการ</th></tr></thead>
+          <tbody id="measureTable"><tr><td colspan="6" class="muted">ยังไม่ได้เชื่อมต่อหรือไม่มีข้อมูล</td></tr></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div class="modal-overlay" id="editModalOverlay">
+    <div class="modal-box">
+      <h3>แก้ไขข้อมูลการวัด</h3>
+      <div class="field">
+        <label>วันที่วัด</label>
+        <input type="date" id="editDateInput">
+      </div>
+      <div class="field">
+        <label>ความสูง (เมตร)</label>
+        <input type="number" step="0.01" id="editHeightInput">
+      </div>
+      <div class="field">
+        <label>เส้นรอบวง (ซม.)</label>
+        <input type="number" step="0.01" id="editGirthInput">
+      </div>
+      <div id="editModalMsg" class="msg-text"></div>
+      <div class="modal-actions">
+        <button class="btn secondary" id="editCancelBtn" type="button">ยกเลิก</button>
+        <button class="btn" id="editSaveBtn" type="button">บันทึกการแก้ไข</button>
       </div>
     </div>
   </div>
@@ -489,16 +570,23 @@
           $('avgGirth').textContent = avgG;
 
           const tbody = $('measureTable');
-          if(count === 0){ tbody.innerHTML = '<tr><td colspan="5" class="muted">ยังไม่มีข้อมูลการวัด</td></tr>'; return; }
+          if(count === 0){ tbody.innerHTML = '<tr><td colspan="6" class="muted">ยังไม่มีข้อมูลการวัด</td></tr>'; return; }
 
           tbody.innerHTML = filtered.map(m => {
             const dateRow = dateMap[m.รหัสวันที่] || {};
             const tree = treeMap[m.หมายเลขต้นไม้] || {};
             const dateLabel = dateRow.วันที่วัด || (m.รหัสวันที่ || '—');
             const timeLabel = m.created_at || dateLabel;
-            return `<tr><td>${timeLabel}</td><td>${m.หมายเลขต้นไม้ || '—'}</td><td>${tree.ชื่อต้น || '—'}</td><td>${m.ความสูง || '—'}</td><td>${m.เส้นรอบวง || '—'}</td></tr>`;
+            const rowId = m.รหัสการวัด;
+            return `<tr data-id="${rowId}"><td>${timeLabel}</td><td>${m.หมายเลขต้นไม้ || '—'}</td><td>${tree.ชื่อต้น || '—'}</td><td>${m.ความสูง || '—'}</td><td>${m.เส้นรอบวง || '—'}</td>
+              <td><div class="row-actions">
+                <button class="btn-tiny" onclick="openEditModal('${rowId}')">แก้ไข</button>
+                <button class="btn-tiny danger" onclick="deleteMeasure('${rowId}')">ลบ</button>
+              </div></td></tr>`;
           }).join('');
         }
+
+        window.renderFiltered = renderFiltered;
 
       }catch(err){ $('connectMsg2').textContent = 'โหลดแดชบอร์ดไม่สำเร็จ: ' + err.message; $('connectMsg2').style.color='var(--err)'; }
     }
@@ -508,6 +596,80 @@
       const k = localStorage.getItem('supaKey');
       if(u && k){ $('supaUrl2').value = u; $('supaKey2').value = k; $('connectBtn2').click(); }
     });
+
+    // ---------- แก้ไขข้อมูล (Edit) ----------
+    let editingId = null;
+
+    function openEditModal(rowId){
+      const m = (measuresRaw || []).find(x => String(x.รหัสการวัด) === String(rowId));
+      if(!m){ return; }
+      editingId = rowId;
+      const dateRow = dateMap[m.รหัสวันที่] || {};
+      $('editDateInput').value = dateRow.วันที่วัด || '';
+      $('editHeightInput').value = m.ความสูง || '';
+      $('editGirthInput').value = m.เส้นรอบวง || '';
+      $('editModalMsg').textContent = '';
+      $('editModalOverlay').classList.add('show');
+    }
+    function closeEditModal(){
+      editingId = null;
+      $('editModalOverlay').classList.remove('show');
+    }
+    $('editCancelBtn').addEventListener('click', closeEditModal);
+    $('editModalOverlay').addEventListener('click', (e) => { if(e.target === $('editModalOverlay')) closeEditModal(); });
+
+    $('editSaveBtn').addEventListener('click', async () => {
+      if(!supabaseClient2 || editingId === null){ return; }
+      const msgEl = $('editModalMsg');
+      const newDate = $('editDateInput').value;
+      const newHeight = $('editHeightInput').value || null;
+      const newGirth = $('editGirthInput').value || null;
+      if(!newDate){ msgEl.textContent = 'กรุณาเลือกวันที่'; msgEl.style.color = 'var(--err)'; return; }
+
+      $('editSaveBtn').disabled = true;
+      try{
+        // หา หรือสร้างรหัสวันที่ ให้ตรงกับวันที่ที่เลือก
+        let dateId = null;
+        const existingDate = Object.values(dateMap).find(d => d.วันที่วัด === newDate);
+        if(existingDate){
+          dateId = existingDate.รหัสวันที่;
+        }else{
+          const { data: newDateRow, error: dateErr } = await supabaseClient2
+            .from('วันที่').insert({ วันที่วัด: newDate }).select().single();
+          if(dateErr) throw dateErr;
+          dateId = newDateRow.รหัสวันที่;
+          dateMap[dateId] = newDateRow;
+        }
+
+        const { error: updateErr } = await supabaseClient2
+          .from('การวัด')
+          .update({ ความสูง: newHeight, เส้นรอบวง: newGirth, รหัสวันที่: dateId })
+          .eq('รหัสการวัด', editingId);
+        if(updateErr) throw updateErr;
+
+        closeEditModal();
+        await loadDashboard();
+      }catch(err){
+        msgEl.textContent = 'บันทึกการแก้ไขไม่สำเร็จ: ' + (err.message || err);
+        msgEl.style.color = 'var(--err)';
+      }finally{
+        $('editSaveBtn').disabled = false;
+      }
+    });
+
+    // ---------- ลบข้อมูล (Delete) ----------
+    async function deleteMeasure(rowId){
+      if(!supabaseClient2){ return; }
+      if(!confirm('ยืนยันการลบรายการนี้? การลบไม่สามารถย้อนกลับได้')) return;
+      try{
+        const { error } = await supabaseClient2.from('การวัด').delete().eq('รหัสการวัด', rowId);
+        if(error) throw error;
+        await loadDashboard();
+      }catch(err){
+        $('connectMsg2').textContent = 'ลบข้อมูลไม่สำเร็จ: ' + (err.message || err);
+        $('connectMsg2').style.color = 'var(--err)';
+      }
+    }
   </script>
 </body>
 </html>

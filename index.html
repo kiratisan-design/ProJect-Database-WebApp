@@ -466,8 +466,8 @@
 </details>
 
 <section class="card" id="authBox" style="display:none;">
-  <div class="step-title">เข้าสู่ระบบ</div>
-  <div class="sub" style="margin:6px 0 16px;">กรุณาเข้าสู่ระบบก่อนใช้งานระบบบันทึกข้อมูล</div>
+  <div class="step-title" id="authTitle">เข้าสู่ระบบ</div>
+  <div class="sub" style="margin:6px 0 16px;" id="authSub">กรุณาเข้าสู่ระบบก่อนใช้งานระบบบันทึกข้อมูล</div>
   <form id="authForm">
     <div class="field">
       <label for="authEmail">อีเมล</label>
@@ -480,6 +480,9 @@
     <button class="btn-small" type="submit" id="loginBtn">เข้าสู่ระบบ</button>
     <button class="btn-small" type="button" id="logoutBtn" style="display:none;">ออกจากระบบ</button>
   </form>
+  <div style="margin-top:12px;">
+    <a href="register.html" style="font-size:13px;color:var(--forest);font-weight:600;text-decoration:underline;">ยังไม่มีบัญชี? สมัครสมาชิก</a>
+  </div>
   <div class="msg" id="authMsg"></div>
 </section>
 
@@ -706,14 +709,16 @@ $('authForm').addEventListener('submit', async (event) => {
   if(!supabaseClient){ showMsg($('authMsg'), 'กรุณาเชื่อมต่อ Supabase ก่อน', 'err'); return; }
   const loginBtn = $('loginBtn');
   loginBtn.disabled = true;
+  const email = $('authEmail').value.trim();
+  const password = $('authPassword').value;
   try{
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email: $('authEmail').value.trim(),
-      password: $('authPassword').value
-    });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if(error) throw error;
     await startAuthenticatedApp(data.session);
-  }catch(error){ showMsg($('authMsg'), 'เข้าสู่ระบบไม่สำเร็จ: ' + error.message, 'err'); }
+  }catch(error){
+    logError(error, 'login');
+    showMsg($('authMsg'), 'เข้าสู่ระบบไม่สำเร็จ: ' + error.message, 'err');
+  }
   finally{ loginBtn.disabled = false; }
 });
 
