@@ -44,6 +44,57 @@
     -webkit-font-smoothing:antialiased;
   }
 
+  /* ===== USER BAR (sticky logout) ===== */
+  .user-bar{
+    position:sticky;
+    top:0;
+    z-index:50;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 20px;
+    background:linear-gradient(135deg, var(--forest-deep), #163D28);
+    color:#EFEAE0;
+    box-shadow:0 2px 10px rgba(26,35,50,0.15);
+  }
+  .user-bar-info{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    font-family:'JetBrains Mono',monospace;
+    color:#D9E8DE;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .user-bar-dot{
+    width:8px;height:8px;
+    border-radius:50%;
+    background:#7FBF8D;
+    flex-shrink:0;
+    box-shadow:0 0 6px rgba(127,191,141,0.7);
+  }
+  .user-bar-logout{
+    flex-shrink:0;
+    padding:7px 16px;
+    border-radius:8px;
+    border:1.5px solid rgba(239,234,224,0.4);
+    background:rgba(255,255,255,0.06);
+    color:#EFEAE0;
+    font-size:12.5px;
+    font-weight:600;
+    font-family:'Space Grotesk',sans-serif;
+    cursor:pointer;
+    transition:all .2s;
+    white-space:nowrap;
+  }
+  .user-bar-logout:hover{
+    background:rgba(255,255,255,0.16);
+    border-color:rgba(239,234,224,0.7);
+  }
+
   /* ===== HEADER ===== */
   header{
     padding:48px 20px 24px;
@@ -439,6 +490,14 @@
 </head>
 <body>
 
+<div class="user-bar" id="userBar" style="display:none;">
+  <span class="user-bar-info">
+    <span class="user-bar-dot"></span>
+    <span id="userEmailLabel"></span>
+  </span>
+  <button class="user-bar-logout" id="logoutBtn" type="button">ออกจากระบบ</button>
+</div>
+
 <header>
   <div class="eyebrow">Field Data Entry</div>
   <h1>บันทึกภาคสนาม: การวัดต้นไม้</h1>
@@ -463,7 +522,6 @@
       <input type="password" id="authPassword" autocomplete="current-password" required disabled>
     </div>
     <button class="btn-small" type="submit" id="loginBtn" disabled>เข้าสู่ระบบ</button>
-    <button class="btn-small" type="button" id="logoutBtn" style="display:none;">ออกจากระบบ</button>
   </form>
   <div style="margin-top:12px;">
     <a href="register.html" style="font-size:13px;color:var(--forest);font-weight:600;text-decoration:underline;">ยังไม่มีบัญชี? สมัครสมาชิก</a>
@@ -703,7 +761,8 @@ function enableLoginForm(){
 async function startAuthenticatedApp(session){
   $('authForm').style.display = 'none';
   $('connectPrompt').style.display = 'none';
-  $('logoutBtn').style.display = 'inline-flex';
+  $('userEmailLabel').textContent = session.user.email || 'เข้าสู่ระบบแล้ว';
+  $('userBar').style.display = 'flex';
   showMsg($('authMsg'), 'เข้าสู่ระบบแล้ว: ' + (session.user.email || ''), 'ok');
   await loadSpecies();
   await loadZones();
@@ -738,7 +797,7 @@ $('authForm').addEventListener('submit', async (event) => {
 $('logoutBtn').addEventListener('click', async () => {
   if(supabaseClient) await supabaseClient.auth.signOut();
   $('authForm').style.display = 'flex';
-  $('logoutBtn').style.display = 'none';
+  $('userBar').style.display = 'none';
   $('dashLinkWrap').style.display = 'none';
   $('appMain').style.display = 'none';
   showMsg($('authMsg'), 'ออกจากระบบแล้ว', 'ok');
