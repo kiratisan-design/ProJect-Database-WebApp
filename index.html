@@ -442,12 +442,34 @@
 <header>
   <div class="eyebrow">Field Data Entry</div>
   <h1>บันทึกภาคสนาม: การวัดต้นไม้</h1>
-  <p class="sub">กรอกข้อมูลตามลำดับ 1-4 แล้วกด "บันทึกการวัด" ระบบจะส่งข้อมูลตรงเข้า Supabase</p>
+  <p class="sub">เข้าสู่ระบบเพื่อเริ่มบันทึกข้อมูล ระบบจะส่งข้อมูลตรงเข้า Supabase</p>
 </header>
 
-<div class="dash-link-wrap">
-  <a href="index2_v2.html" class="dash-link">📊 เปิดแดชบอร์ดและรายละเอียด</a>
-</div>
+<section class="card" id="authBox">
+  <div class="step-title" id="authTitle">เข้าสู่ระบบ</div>
+  <div class="sub" style="margin:6px 0 16px;" id="authSub">กรุณาเข้าสู่ระบบก่อนใช้งานระบบบันทึกข้อมูล</div>
+
+  <div id="connectPrompt" style="display:none; padding:14px 16px; background:var(--bark-light); border:1px dashed var(--bark); border-radius:10px; font-size:13.5px; color:var(--ink-soft); margin-bottom:16px;">
+    ยังไม่ได้เชื่อมต่อฐานข้อมูล กรุณาเปิด "⚙ ตั้งค่าการเชื่อมต่อ Supabase" ด้านล่างและกดเชื่อมต่อก่อน จึงจะเข้าสู่ระบบได้
+  </div>
+
+  <form id="authForm">
+    <div class="field">
+      <label for="authEmail">อีเมล</label>
+      <input type="email" id="authEmail" autocomplete="email" required disabled>
+    </div>
+    <div class="field">
+      <label for="authPassword">รหัสผ่าน</label>
+      <input type="password" id="authPassword" autocomplete="current-password" required disabled>
+    </div>
+    <button class="btn-small" type="submit" id="loginBtn" disabled>เข้าสู่ระบบ</button>
+    <button class="btn-small" type="button" id="logoutBtn" style="display:none;">ออกจากระบบ</button>
+  </form>
+  <div style="margin-top:12px;">
+    <a href="register.html" style="font-size:13px;color:var(--forest);font-weight:600;text-decoration:underline;">ยังไม่มีบัญชี? สมัครสมาชิก</a>
+  </div>
+  <div class="msg" id="authMsg"></div>
+</section>
 
 <details class="config" id="configBox">
   <summary>⚙ ตั้งค่าการเชื่อมต่อ Supabase (กดครั้งแรกเท่านั้น)</summary>
@@ -465,26 +487,9 @@
   </div>
 </details>
 
-<section class="card" id="authBox" style="display:none;">
-  <div class="step-title" id="authTitle">เข้าสู่ระบบ</div>
-  <div class="sub" style="margin:6px 0 16px;" id="authSub">กรุณาเข้าสู่ระบบก่อนใช้งานระบบบันทึกข้อมูล</div>
-  <form id="authForm">
-    <div class="field">
-      <label for="authEmail">อีเมล</label>
-      <input type="email" id="authEmail" autocomplete="email" required>
-    </div>
-    <div class="field">
-      <label for="authPassword">รหัสผ่าน</label>
-      <input type="password" id="authPassword" autocomplete="current-password" required>
-    </div>
-    <button class="btn-small" type="submit" id="loginBtn">เข้าสู่ระบบ</button>
-    <button class="btn-small" type="button" id="logoutBtn" style="display:none;">ออกจากระบบ</button>
-  </form>
-  <div style="margin-top:12px;">
-    <a href="register.html" style="font-size:13px;color:var(--forest);font-weight:600;text-decoration:underline;">ยังไม่มีบัญชี? สมัครสมาชิก</a>
-  </div>
-  <div class="msg" id="authMsg"></div>
-</section>
+<div class="dash-link-wrap" id="dashLinkWrap" style="display:none;">
+  <a href="index2_v2.html" class="dash-link">📊 เปิดแดชบอร์ดและรายละเอียด</a>
+</div>
 
 <main id="appMain" style="display:none;">
 
@@ -678,7 +683,7 @@ $('connectBtn').addEventListener('click', async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if(session) await startAuthenticatedApp(session);
     else {
-      $('authBox').style.display = 'block';
+      enableLoginForm();
       showMsg($('authMsg'), 'เชื่อมต่อแล้ว กรุณาเข้าสู่ระบบ', 'ok');
       showMsg(msg, 'เชื่อมต่อสำเร็จ กรุณา Login', 'ok');
     }
@@ -688,15 +693,23 @@ $('connectBtn').addEventListener('click', async () => {
   }
 });
 
+function enableLoginForm(){
+  $('connectPrompt').style.display = 'none';
+  $('authEmail').disabled = false;
+  $('authPassword').disabled = false;
+  $('loginBtn').disabled = false;
+}
+
 async function startAuthenticatedApp(session){
-  $('authBox').style.display = 'block';
   $('authForm').style.display = 'none';
+  $('connectPrompt').style.display = 'none';
   $('logoutBtn').style.display = 'inline-flex';
   showMsg($('authMsg'), 'เข้าสู่ระบบแล้ว: ' + (session.user.email || ''), 'ok');
   await loadSpecies();
   await loadZones();
   showMsg($('connectMsg'), '✓ เชื่อมต่อและเข้าสู่ระบบสำเร็จ', 'ok');
   $('configBox').removeAttribute('open');
+  $('dashLinkWrap').style.display = 'block';
   $('appMain').style.display = 'flex';
   $('speciesSelect').disabled = false;
   $('newSpeciesName').disabled = false;
@@ -726,9 +739,42 @@ $('logoutBtn').addEventListener('click', async () => {
   if(supabaseClient) await supabaseClient.auth.signOut();
   $('authForm').style.display = 'flex';
   $('logoutBtn').style.display = 'none';
+  $('dashLinkWrap').style.display = 'none';
   $('appMain').style.display = 'none';
   showMsg($('authMsg'), 'ออกจากระบบแล้ว', 'ok');
 });
+
+// ---------- เชื่อมต่ออัตโนมัติเมื่อโหลดหน้า (ถ้าเคยตั้งค่าไว้แล้ว) ----------
+(async function autoConnectOnLoad(){
+  let url = '', key = '';
+  try{
+    url = localStorage.getItem('supaUrl') || '';
+    key = localStorage.getItem('supaKey') || '';
+  }catch(e){}
+
+  if(url && key){
+    $('supaUrl').value = url;
+    $('supaKey').value = key;
+    try{
+      supabaseClient = window.supabase.createClient(url, key);
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if(session){
+        await startAuthenticatedApp(session);
+      }else{
+        enableLoginForm();
+      }
+    }catch(e){
+      logError(e, 'autoConnect');
+      $('configBox').setAttribute('open', '');
+      $('connectPrompt').style.display = 'block';
+      showMsg($('connectMsg'), 'เชื่อมต่ออัตโนมัติไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า: ' + e.message, 'err');
+    }
+  }else{
+    // ยังไม่เคยตั้งค่า Supabase มาก่อน — เปิดกล่องตั้งค่าให้เลย และแสดงข้อความแจ้งเตือนในกล่อง login
+    $('configBox').setAttribute('open', '');
+    $('connectPrompt').style.display = 'block';
+  }
+})();
 
 function showMsg(el, text, type){
   el.textContent = text;
