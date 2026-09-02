@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>แดชบอร์ด — รายละเอียดการวัด (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{
+      --paper:#F0EDE4;
+      --panel:#FFFFFF;
+      --ink:#1A2332;
+      --ink-soft:#5A6577;
+      --forest:#2D7A4F;
+      --forest-deep:#1B5E3A;
+      --forest-light:#E8F5EE;
+      --forest-glow:rgba(45,122,79,0.15);
+      --bark:#9B7A3E;
+      --line:#E2DDD0;
+      --ok:#2D7A4F;
+      --err:#C0392B;
+      --radius:14px;
+      --shadow-sm:0 1px 3px rgba(26,35,50,0.06);
+      --shadow-md:0 4px 16px rgba(26,35,50,0.08);
+      --shadow-lg:0 8px 32px rgba(26,35,50,0.12);
+      --shadow-focus:0 0 0 4px rgba(45,122,79,0.12);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:'Noto Sans Thai','Space Grotesk',sans-serif;
+      background:var(--paper);
+      background-image:radial-gradient(circle at 1px 1px, rgba(26,35,50,0.04) 1px, transparent 0);
+      background-size:24px 24px;
+      color:var(--ink);
+      min-height:100vh;
+      -webkit-font-smoothing:antialiased;
+    }
+    .container{ max-width:980px; margin:24px auto; padding:16px; }
+
+    /* ===== HEADER ===== */
+    header{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:24px 28px;
+      background:var(--panel);
+      border-radius:var(--radius);
+      border:1px solid var(--line);
+      box-shadow:var(--shadow-sm);
+      margin-bottom:18px;
+      animation:slideIn .4s ease-out;
+    }
+    @keyframes slideIn{
+      from{ opacity:0; transform:translateY(-10px); }
+      to{ opacity:1; transform:translateY(0); }
+    }
+    h1{ margin:0; font-size:22px; font-weight:700; font-family:'Space Grotesk',sans-serif; color:var(--forest-deep); }
+    .muted{ color:var(--ink-soft); font-size:13px; }
+
+    /* ===== BUTTONS ===== */
+    .btn{
+      padding:10px 18px;
+      background:linear-gradient(135deg, var(--forest), var(--forest-deep));
+      color:#fff;
+      border-radius:10px;
+      text-decoration:none;
+      font-weight:600;
+      font-size:13px;
+      font-family:'Space Grotesk',sans-serif;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      transition:all .2s;
+      box-shadow:0 2px 6px rgba(45,122,79,0.25);
+      border:none;
+      cursor:pointer;
+      white-space:nowrap;
+    }
+    .btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 4px 12px rgba(45,122,79,0.35);
+    }
+    .btn:active{ transform:translateY(0); }
+    .btn:disabled{
+      background:linear-gradient(135deg, #B7C4B9, #A8B5AA);
+      cursor:not-allowed;
+      box-shadow:none;
+      transform:none;
+    }
+
+    /* ===== CARDS ===== */
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      padding:22px;
+      margin-top:14px;
+      box-shadow:var(--shadow-sm);
+      transition:box-shadow .2s;
+      animation:cardIn .4s ease-out both;
+    }
+    .card:hover{ box-shadow:var(--shadow-md); }
+    @keyframes cardIn{
+      from{ opacity:0; transform:translateY(12px); }
+      to{ opacity:1; transform:translateY(0); }
+    }
+    .card:nth-child(2){ animation-delay:.05s; }
+    .card:nth-child(3){ animation-delay:.10s; }
+    .card:nth-child(4){ animation-delay:.15s; }
+
+    /* ===== FORM ELEMENTS ===== */
+    label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:7px; font-family:'JetBrains Mono',monospace; font-weight:500; letter-spacing:0.02em; }
+    input, select{
+      width:100%;
+      padding:11px 14px;
+      border:1.5px solid var(--line);
+      border-radius:10px;
+      font-size:14px;
+      font-family:'Noto Sans Thai',sans-serif;
+      background:linear-gradient(135deg, #FDFCFA, #F8F6F0);
+      color:var(--ink);
+      transition:border-color .2s, box-shadow .2s, background .2s;
+      outline:none;
+    }
+    input:hover, select:hover{ border-color:#C5BFA8; }
+    input:focus, select:focus{
+      border-color:var(--forest);
+      box-shadow:var(--shadow-focus);
+      background:#fff;
+    }
+    select{
+      appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath fill='%235A6577' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-position:right 14px center;
+      padding-right:36px;
+      cursor:pointer;
+    }
+
+    /* ===== STATS ===== */
+    .row{ display:flex; gap:14px; flex-wrap:wrap; }
+    .stat{
+      flex:1 1 180px;
+      padding:18px;
+      border-radius:12px;
+      background:linear-gradient(135deg, var(--forest-light), #F0FAF4);
+      border:1px solid rgba(45,122,79,0.1);
+      transition:transform .2s, box-shadow .2s;
+    }
+    .stat:hover{
+      transform:translateY(-2px);
+      box-shadow:0 4px 12px rgba(45,122,79,0.12);
+    }
+    .stat-label{
+      font-size:12px;
+      color:var(--ink-soft);
+      font-family:'JetBrains Mono',monospace;
+      font-weight:500;
+      margin-bottom:6px;
+    }
+    .stat-value{
+      font-size:26px;
+      font-weight:700;
+      font-family:'Space Grotesk',sans-serif;
+      color:var(--forest-deep);
+    }
+
+    /* ===== TABLE ===== */
+    table{ width:100%; border-collapse:collapse; margin-top:14px; }
+    th{
+      padding:10px 12px;
+      border-bottom:2px solid var(--line);
+      text-align:left;
+      font-size:12px;
+      font-family:'JetBrains Mono',monospace;
+      font-weight:600;
+      color:var(--ink-soft);
+      text-transform:uppercase;
+      letter-spacing:0.04em;
+    }
+    td{
+      padding:11px 12px;
+      border-bottom:1px solid #F0EDE4;
+      text-align:left;
+      font-size:14px;
+      transition:background .15s;
+    }
+    tbody tr:hover td{ background:var(--forest-light); }
+    tbody tr:last-child td{ border-bottom:none; }
+
+    /* ===== AUTH BOX ===== */
+    #authForm2{ display:flex; gap:12px; flex-wrap:wrap; align-items:end; }
+    #authForm2 .field{ flex:1 1 220px; }
+
+    /* ===== DETAILS ===== */
+    details summary{
+      cursor:pointer;
+      font-size:14px;
+      font-weight:600;
+      font-family:'Space Grotesk',sans-serif;
+      color:var(--forest-deep);
+      padding:4px 0;
+      transition:color .2s;
+    }
+    details summary:hover{ color:var(--forest); }
+    details[open] summary{ margin-bottom:12px; }
+
+    /* ===== MESSAGE ===== */
+    .msg-text{
+      font-size:13px;
+      margin-top:10px;
+      padding:10px 14px;
+      border-radius:8px;
+      font-weight:500;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:700px){
+      header{ flex-direction:column; align-items:flex-start; padding:18px 20px; }
+      .container{ padding:12px; }
+      .card{ padding:18px; }
+      .row{ flex-direction:column; }
+      .stat{ flex:1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a class="btn" href="index.html">◀ กลับไปหน้าเก็บข้อมูล</a>
+      <div style="flex:1">
+        <h1>แดชบอร์ด — รายละเอียดการวัด</h1>
+        <div class="muted" style="margin-top:4px;">แสดงสถิติการวัดและรายการล่าสุด (เชื่อมต่อ Supabase ด้านล่าง)</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <details open>
+        <summary>⚙ ตั้งค่าการเชื่อมต่อ Supabase</summary>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+          <div style="flex:1;min-width:200px;">
+            <label style="margin-bottom:7px;">Project URL</label>
+            <input id="supaUrl2" type="text" placeholder="https://xxxx.supabase.co">
+          </div>
+          <div style="flex:1;min-width:200px;">
+            <label style="margin-bottom:7px;">Anon Key</label>
+            <input id="supaKey2" type="text" placeholder="anon key">
+          </div>
+          <button id="connectBtn2" class="btn" style="margin-bottom:0;">เชื่อมต่อ</button>
+        </div>
+        <div id="connectMsg2" class="msg-text" style="margin-top:10px;"></div>
+      </details>
+    </div>
+
+    <div class="card" id="authBox2">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--forest),var(--forest-deep));color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">&#128274;</div>
+        <strong style="font-family:'Space Grotesk',sans-serif;font-size:16px;color:var(--forest-deep);">เข้าสู่ระบบ</strong>
+      </div>
+      <div class="muted" style="margin:4px 0 14px">กรุณาเข้าสู่ระบบก่อนดูข้อมูล</div>
+      <form id="authForm2">
+        <div class="field"><label>อีเมล</label><input id="authEmail2" type="email" autocomplete="email" required></div>
+        <div class="field"><label>รหัสผ่าน</label><input id="authPassword2" type="password" autocomplete="current-password" required></div>
+        <button id="loginBtn2" class="btn" type="submit">เข้าสู่ระบบ</button>
+        <button id="logoutBtn2" class="btn" type="button" style="display:none">ออกจากระบบ</button>
+      </form>
+      <div id="authMsg2" class="msg-text"></div>
+    </div>
+
+    <div id="dashboard" style="display:none">
+      <div class="card">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end;">
+          <div style="min-width:220px;flex:0 0 220px;">
+            <label>วงศ์</label>
+            <select id="speciesFilter">
+              <option value="">-- ทุกวงศ์ --</option>
+            </select>
+          </div>
+          <div style="min-width:220px;flex:0 0 220px;">
+            <label>โซน</label>
+            <select id="zoneFilter">
+              <option value="">-- ทุกโซน --</option>
+            </select>
+          </div>
+          <div style="margin-left:auto;color:var(--ink-soft);font-size:12px;font-family:'JetBrains Mono',monospace;padding-bottom:12px;">เลือกเพื่อกรองการแสดงผล</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" id="statsRow">
+          <div class="stat">
+            <div class="stat-label">จำนวนการวัดทั้งหมด</div>
+            <div class="stat-value" id="totalCount">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">ความสูงเฉลี่ย (ม.)</div>
+            <div class="stat-value" id="avgHeight">—</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">เส้นรอบวงเฉลี่ย (ซม.)</div>
+            <div class="stat-value" id="avgGirth">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 4px; font-family:'Space Grotesk',sans-serif; font-size:17px; color:var(--forest-deep);">รายการการวัดล่าสุด</h3>
+        <div class="muted" style="margin-bottom:4px;">แถวบนสุดคือรายการล่าสุด</div>
+        <table>
+          <thead><tr><th>เวลา/วันที่</th><th>หมายเลขต้น</th><th>ชื่อต้น</th><th>ความสูง (ม.)</th><th>เส้นรอบวง (ซม.)</th></tr></thead>
+          <tbody id="measureTable"><tr><td colspan="5" class="muted">ยังไม่ได้เชื่อมต่อหรือไม่มีข้อมูล</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    let supabaseClient2 = null;
+    let measuresRaw = [];
+    let dateMap = {};
+    let treeMap = {};
+    let speciesRows = [];
+    let zoneRows = [];
+
+    if(localStorage.getItem('supaUrl')) $('supaUrl2').value = localStorage.getItem('supaUrl');
+    if(localStorage.getItem('supaKey')) $('supaKey2').value = localStorage.getItem('supaKey');
+
+    $('connectBtn2').addEventListener('click', async () => {
+      const url = $('supaUrl2').value.trim();
+      const key = $('supaKey2').value.trim();
+      const msg = $('connectMsg2');
+      msg.textContent = '';
+      msg.className = 'msg-text';
+      if(!url || !key){ msg.textContent = 'กรุณากรอก URL และ Key ให้ครบ'; msg.style.color='var(--err)'; return; }
+      try{
+        supabaseClient2 = window.supabase.createClient(url, key);
+        try{ localStorage.setItem('supaUrl', url); localStorage.setItem('supaKey', key); }catch(e){}
+        const { data: { session } } = await supabaseClient2.auth.getSession();
+        if(session) await startAuthenticatedDashboard(session);
+        else { $('authBox2').style.display = 'block'; msg.textContent = 'เชื่อมต่อสำเร็จ กรุณา Login'; msg.style.color='var(--ok)'; }
+      }catch(e){ msg.textContent = 'เชื่อมต่อไม่สำเร็จ: ' + e.message; msg.style.color='var(--err)'; }
+    });
+
+    async function startAuthenticatedDashboard(session){
+      $('authBox2').style.display = 'block';
+      $('authForm2').style.display = 'none';
+      $('logoutBtn2').style.display = 'inline-flex';
+      $('authMsg2').textContent = 'เข้าสู่ระบบแล้ว: ' + (session.user.email || '');
+      $('authMsg2').style.color = 'var(--ok)';
+      await loadDashboard();
+    }
+
+    $('authForm2').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if(!supabaseClient2){ $('authMsg2').textContent = 'กรุณาเชื่อมต่อ Supabase ก่อน'; $('authMsg2').style.color='var(--err)'; return; }
+      $('loginBtn2').disabled = true;
+      try{
+        const { data, error } = await supabaseClient2.auth.signInWithPassword({ email: $('authEmail2').value.trim(), password: $('authPassword2').value });
+        if(error) throw error;
+        await startAuthenticatedDashboard(data.session);
+      }catch(error){ $('authMsg2').textContent = 'เข้าสู่ระบบไม่สำเร็จ: ' + error.message; $('authMsg2').style.color='var(--err)'; }
+      finally{ $('loginBtn2').disabled = false; }
+    });
+
+    $('logoutBtn2').addEventListener('click', async () => {
+      await supabaseClient2.auth.signOut();
+      $('authForm2').style.display = 'flex';
+      $('logoutBtn2').style.display = 'none';
+      $('dashboard').style.display = 'none';
+      $('authMsg2').textContent = 'ออกจากระบบแล้ว';
+      $('authMsg2').style.color = 'var(--ok)';
+    });
+
+    async function loadDashboard(){
+      if(!supabaseClient2){ $('connectMsg2').textContent = 'ยังไม่ได้เชื่อมต่อ'; return; }
+      document.getElementById('dashboard').style.display = 'block';
+
+      try{
+        const [
+          { data: measures, error: mErr },
+          { data: dateRows, error: dErr },
+          { data: treeRows, error: tErr },
+          { data: sRows, error: sErr },
+          { data: zRows, error: zErr }
+        ] = await Promise.all([
+          supabaseClient2.from('การวัด').select('*').limit(200),
+          supabaseClient2.from('วันที่').select('*'),
+          supabaseClient2.from('ต้นไม้').select('*'),
+          supabaseClient2.from('วงษ์').select('*'),
+          supabaseClient2.from('โซน').select('*')
+        ]);
+
+        const fetchErrors = [];
+        if(mErr) fetchErrors.push({ table: 'การวัด', error: mErr });
+        if(dErr) fetchErrors.push({ table: 'วันที่', error: dErr });
+        if(tErr) fetchErrors.push({ table: 'ต้นไม้', error: tErr });
+        if(sErr) fetchErrors.push({ table: 'วงษ์', error: sErr });
+        if(zErr) fetchErrors.push({ table: 'โซน', error: zErr });
+        if(fetchErrors.length){
+          const msgParts = fetchErrors.map(fe => `${fe.table}: ${fe.error.message || JSON.stringify(fe.error)}`);
+          const finalMsg = 'โหลดข้อมูลบางตารางไม่สำเร็จ — ' + msgParts.join(' | ');
+          $('connectMsg2').textContent = finalMsg;
+          $('connectMsg2').style.color = 'var(--err)';
+          console.error('loadDashboard fetch errors', fetchErrors);
+        }
+
+        measuresRaw = measures || [];
+        speciesRows = sRows || [];
+        zoneRows = zRows || [];
+        dateMap = {};
+        treeMap = {};
+        (dateRows||[]).forEach(d => { dateMap[d.รหัสวันที่] = d; });
+        (treeRows||[]).forEach(t => { treeMap[t.หมายเลขต้นไม้] = t; });
+
+        console.log('loadDashboard: measures', measuresRaw.length, 'trees', treeRows.length, 'species', speciesRows.length, 'zones', zoneRows.length);
+        try{
+          console.group('DEBUG: speciesRows (id -> name)');
+          console.table((speciesRows||[]).map(s => ({ id: s.รหัสวงษ์, name: s.ชื่อวงษ์ })));
+          console.groupEnd();
+          console.group('DEBUG: treeRows (id, name, species)');
+          console.table((treeRows||[]).slice(0,500).map(t => ({ id: t.หมายเลขต้นไม้, name: t.ชื่อต้น, species: t.รหัสวงษ์, zone: t.รหัสโซน })));
+          console.groupEnd();
+          const counts = {};
+          (treeRows||[]).forEach(t => { const k = String(t.รหัสวงษ์||''); counts[k] = (counts[k]||0) + 1; });
+          console.log('tree counts per species id:', counts);
+        }catch(e){ console.warn('debug dump failed', e); }
+
+        const spSel = $('speciesFilter');
+        let speciesOptions = [];
+        if(speciesRows && speciesRows.length){
+          speciesOptions = speciesRows.map(s => ({ id: s.รหัสวงษ์, name: s.ชื่อวงษ์ }));
+        } else {
+          const set = new Set();
+          (treeRows||[]).forEach(t => { if(t.รหัสวงษ์) set.add(String(t.รหัสวงษ์)); });
+          speciesOptions = Array.from(set).map(id => ({ id, name: 'รหัส: ' + id }));
+        }
+        spSel.innerHTML = '<option value="">-- ทุกวงศ์ --</option>' + speciesOptions.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+        const znSel = $('zoneFilter');
+        znSel.innerHTML = '<option value="">-- ทุกโซน --</option>' + (zoneRows.map(z => `<option value="${z.รหัสโซน}">${z.ชื่อโซน}</option>`).join(''));
+        spSel.onchange = renderFiltered;
+        znSel.onchange = renderFiltered;
+
+        if(measuresRaw && measuresRaw.sort){
+          measuresRaw.sort((a,b)=>{
+            if(a.created_at && b.created_at) return new Date(b.created_at) - new Date(a.created_at);
+            if(a.รหัสการวัด && b.รหัสการวัด) return (b.รหัสการวัด||0) - (a.รหัสการวัด||0);
+            return 0;
+          });
+        }
+
+        (function(){
+          const zn = $('zoneFilter');
+          if(!zn) return;
+          if(zoneRows && zoneRows.length){
+            zn.innerHTML = '<option value="">-- ทุกโซน --</option>' + zoneRows.map(z => `<option value="${z.รหัสโซน}">${z.ชื่อโซน}</option>`).join('');
+          } else {
+            const setZ = new Set();
+            (treeRows||[]).forEach(t=>{ if(t.รหัสโซน) setZ.add(String(t.รหัสโซน)); });
+            const opts = Array.from(setZ).map(id => `<option value="${id}">รหัส: ${id}</option>`).join('');
+            zn.innerHTML = '<option value="">-- ทุกโซน --</option>' + opts;
+          }
+          zn.onchange = renderFiltered;
+        })();
+        renderFiltered();
+
+        function renderFiltered(){
+          const sVal = $('speciesFilter').value;
+          const zVal = $('zoneFilter').value;
+          const filtered = (measuresRaw||[]).filter(m => {
+            const tree = treeMap[m.หมายเลขต้นไม้] || {};
+            if(sVal && String(tree.รหัสวงษ์) !== String(sVal)) return false;
+            if(zVal && String(tree.รหัสโซน) !== String(zVal)) return false;
+            return true;
+          });
+
+          const count = filtered.length;
+          const heights = filtered.map(m => parseFloat(m.ความสูง)).filter(n=>!isNaN(n));
+          const girths = filtered.map(m => parseFloat(m.เส้นรอบวง)).filter(n=>!isNaN(n));
+          const avgH = heights.length ? (heights.reduce((a,b)=>a+b,0)/heights.length).toFixed(2) : '—';
+          const avgG = girths.length ? (girths.reduce((a,b)=>a+b,0)/girths.length).toFixed(2) : '—';
+
+          $('totalCount').textContent = count;
+          $('avgHeight').textContent = avgH;
+          $('avgGirth').textContent = avgG;
+
+          const tbody = $('measureTable');
+          if(count === 0){ tbody.innerHTML = '<tr><td colspan="5" class="muted">ยังไม่มีข้อมูลการวัด</td></tr>'; return; }
+
+          tbody.innerHTML = filtered.map(m => {
+            const dateRow = dateMap[m.รหัสวันที่] || {};
+            const tree = treeMap[m.หมายเลขต้นไม้] || {};
+            const dateLabel = dateRow.วันที่วัด || (m.รหัสวันที่ || '—');
+            const timeLabel = m.created_at || dateLabel;
+            return `<tr><td>${timeLabel}</td><td>${m.หมายเลขต้นไม้ || '—'}</td><td>${tree.ชื่อต้น || '—'}</td><td>${m.ความสูง || '—'}</td><td>${m.เส้นรอบวง || '—'}</td></tr>`;
+          }).join('');
+        }
+
+      }catch(err){ $('connectMsg2').textContent = 'โหลดแดชบอร์ดไม่สำเร็จ: ' + err.message; $('connectMsg2').style.color='var(--err)'; }
+    }
+
+    window.addEventListener('load', () => {
+      const u = localStorage.getItem('supaUrl');
+      const k = localStorage.getItem('supaKey');
+      if(u && k){ $('supaUrl2').value = u; $('supaKey2').value = k; $('connectBtn2').click(); }
+    });
+  </script>
+</body>
+</html>

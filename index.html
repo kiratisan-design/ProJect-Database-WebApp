@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>บันทึกภาคสนาม — ระบบวัดต้นไม้</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#F0EDE4;
+    --panel:#FFFFFF;
+    --ink:#1A2332;
+    --ink-soft:#5A6577;
+    --forest:#2D7A4F;
+    --forest-deep:#1B5E3A;
+    --forest-light:#E8F5EE;
+    --forest-glow:rgba(45,122,79,0.15);
+    --bark:#9B7A3E;
+    --bark-light:#F5EFE0;
+    --line:#E2DDD0;
+    --ok:#2D7A4F;
+    --err:#C0392B;
+    --err-light:#FDE8E8;
+    --ok-light:#E8F5EE;
+    --radius:14px;
+    --shadow-sm:0 1px 3px rgba(26,35,50,0.06);
+    --shadow-md:0 4px 16px rgba(26,35,50,0.08);
+    --shadow-lg:0 8px 32px rgba(26,35,50,0.12);
+    --shadow-focus:0 0 0 4px rgba(45,122,79,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(26,35,50,0.04) 1px, transparent 0);
+    background-size:24px 24px;
+    color:var(--ink);
+    font-family:'Noto Sans Thai','Space Grotesk',sans-serif;
+    min-height:100vh;
+    padding-bottom:80px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===== HEADER ===== */
+  header{
+    padding:48px 20px 24px;
+    max-width:660px;
+    margin:0 auto;
+    text-align:center;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.15em;
+    color:var(--bark);
+    text-transform:uppercase;
+    margin-bottom:12px;
+    font-weight:500;
+  }
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:30px;
+    font-weight:700;
+    margin:0 0 10px;
+    color:var(--forest-deep);
+    line-height:1.2;
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:14.5px;
+    line-height:1.6;
+    margin:0;
+    max-width:480px;
+    margin:0 auto;
+  }
+
+  /* ===== DASHBOARD LINK ===== */
+  .dash-link-wrap{
+    max-width:660px;
+    margin:16px auto 0;
+    padding:0 20px;
+    text-align:center;
+  }
+  .dash-link{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:11px 20px;
+    border-radius:10px;
+    background:linear-gradient(135deg, var(--forest), var(--forest-deep));
+    color:#fff;
+    font-weight:600;
+    font-size:14px;
+    text-decoration:none;
+    transition:all .2s;
+    box-shadow:0 2px 8px rgba(45,122,79,0.25);
+  }
+  .dash-link:hover{
+    transform:translateY(-1px);
+    box-shadow:0 4px 16px rgba(45,122,79,0.35);
+  }
+
+  /* ===== CONFIG ===== */
+  .config{
+    max-width:660px;
+    margin:20px auto 8px;
+    padding:18px 20px;
+  }
+  .config summary{
+    cursor:pointer;
+    font-size:13px;
+    color:var(--ink-soft);
+    font-family:'JetBrains Mono',monospace;
+    font-weight:500;
+    padding:6px 0;
+  }
+  .config summary:hover{ color:var(--forest); }
+  .config-body{
+    margin-top:16px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:16px;
+    background:var(--paper);
+    border-radius:10px;
+    border:1px dashed var(--line);
+  }
+
+  /* ===== MAIN ===== */
+  main{
+    max-width:660px;
+    margin:0 auto;
+    padding:0 20px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  /* ===== CARDS ===== */
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:26px;
+    position:relative;
+    box-shadow:var(--shadow-sm);
+    transition:box-shadow .2s, transform .2s;
+    animation:cardIn .4s ease-out both;
+  }
+  .card:hover{
+    box-shadow:var(--shadow-md);
+  }
+  @keyframes cardIn{
+    from{ opacity:0; transform:translateY(12px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .card:nth-child(2){ animation-delay:.05s; }
+  .card:nth-child(3){ animation-delay:.10s; }
+  .card:nth-child(4){ animation-delay:.15s; }
+  .card:nth-child(5){ animation-delay:.20s; }
+
+  /* ===== STEP ROW ===== */
+  .step-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-bottom:20px;
+  }
+  .step-num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    font-weight:600;
+    color:#fff;
+    background:linear-gradient(135deg, var(--forest), var(--forest-deep));
+    width:30px;height:30px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    box-shadow:0 2px 6px rgba(45,122,79,0.3);
+  }
+  .step-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:17px;
+    color:var(--forest-deep);
+  }
+  .step-desc{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:3px 0 0 0;
+    line-height:1.4;
+  }
+
+  /* ===== FORM ELEMENTS ===== */
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:7px;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:500;
+    letter-spacing:0.02em;
+  }
+  select, input[type=text], input[type=number], input[type=date], input[type=email], input[type=password]{
+    width:100%;
+    padding:12px 14px;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    font-size:15px;
+    font-family:'Noto Sans Thai',sans-serif;
+    background:linear-gradient(135deg, #FDFCFA, #F8F6F0);
+    color:var(--ink);
+    transition:border-color .2s, box-shadow .2s, background .2s;
+    outline:none;
+  }
+  input[type=number]{ font-family:'JetBrains Mono',monospace; }
+  select:hover, input:hover{
+    border-color:#C5BFA8;
+  }
+  select:focus, input:focus{
+    border-color:var(--forest);
+    box-shadow:var(--shadow-focus);
+    background:#fff;
+  }
+  select:disabled, input:disabled{
+    background:#ECEAE3;
+    color:#A6A6A0;
+    cursor:not-allowed;
+    border-color:#DDD8CC;
+  }
+  select{
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath fill='%235A6577' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 14px center;
+    padding-right:36px;
+    cursor:pointer;
+  }
+
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .field{ margin-bottom:16px; }
+
+  /* ===== INLINE ADD ===== */
+  .inline-add{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+  }
+  .inline-add input{ flex:1; }
+
+  /* ===== BUTTONS ===== */
+  .btn-small{
+    padding:0 16px;
+    height:40px;
+    border-radius:10px;
+    border:1.5px solid var(--forest);
+    background:transparent;
+    color:var(--forest);
+    font-size:13px;
+    font-weight:600;
+    font-family:'Space Grotesk',sans-serif;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .2s;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .btn-small:hover{
+    background:var(--forest);
+    color:#fff;
+    box-shadow:0 2px 8px rgba(45,122,79,0.25);
+    transform:translateY(-1px);
+  }
+  .btn-small:active{ transform:translateY(0); }
+
+  .btn-submit{
+    width:100%;
+    padding:15px;
+    border:none;
+    border-radius:12px;
+    background:linear-gradient(135deg, var(--forest), var(--forest-deep));
+    color:#fff;
+    font-size:16px;
+    font-weight:600;
+    font-family:'Space Grotesk',sans-serif;
+    cursor:pointer;
+    margin-top:8px;
+    transition:all .2s;
+    box-shadow:0 3px 12px rgba(45,122,79,0.3);
+    letter-spacing:0.02em;
+  }
+  .btn-submit:hover{
+    transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(45,122,79,0.4);
+  }
+  .btn-submit:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(45,122,79,0.3); }
+  .btn-submit:disabled{
+    background:linear-gradient(135deg, #B7C4B9, #A8B5AA);
+    cursor:not-allowed;
+    box-shadow:none;
+    transform:none;
+  }
+
+  /* ===== MESSAGES ===== */
+  .msg{
+    font-size:13px;
+    padding:12px 14px;
+    border-radius:10px;
+    margin-top:14px;
+    display:none;
+    font-weight:500;
+    animation:msgIn .3s ease-out;
+  }
+  @keyframes msgIn{
+    from{ opacity:0; transform:translateY(-4px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .msg.show{ display:flex; align-items:center; gap:8px; }
+  .msg.ok{ background:var(--ok-light); color:var(--ok); border:1px solid rgba(45,122,79,0.2); }
+  .msg.err{ background:var(--err-light); color:var(--err); border:1px solid rgba(192,57,43,0.2); }
+
+  /* ===== AUTH BOX ===== */
+  #authBox{ max-width:660px; margin:14px auto; padding:0 20px; }
+  #authForm{ display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
+  #authForm .field{ flex:1 1 210px; margin-bottom:0; }
+
+  /* ===== LOG BOOK ===== */
+  .log{
+    background:linear-gradient(135deg, var(--forest-deep), #163D28);
+    color:#EFEAE0;
+    border-radius:var(--radius);
+    padding:28px;
+    box-shadow:var(--shadow-md);
+    position:relative;
+    overflow:hidden;
+  }
+  .log::before{
+    content:'';
+    position:absolute;
+    top:-40px;
+    right:-40px;
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    background:rgba(45,122,79,0.15);
+  }
+  .log::after{
+    content:'';
+    position:absolute;
+    bottom:-30px;
+    left:-30px;
+    width:80px;
+    height:80px;
+    border-radius:50%;
+    background:rgba(155,122,62,0.1);
+  }
+  .log h2{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:13px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin:0 0 6px;
+    color:#A3C9AE;
+    position:relative;
+    z-index:1;
+  }
+  .log .count{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:#6E9479;
+    margin-bottom:16px;
+    position:relative;
+    z-index:1;
+  }
+  .log-entry{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:14px;
+    padding:11px 0;
+    border-top:1px solid rgba(239,234,224,0.1);
+    font-size:13px;
+    align-items:baseline;
+    position:relative;
+    z-index:1;
+    transition:background .15s;
+  }
+  .log-entry:first-of-type{ border-top:none; }
+  .log-entry:hover{ background:rgba(255,255,255,0.04); border-radius:8px; }
+  .log-entry .tag{
+    font-family:'JetBrains Mono',monospace;
+    color:#7FBF8D;
+    background:rgba(127,191,141,0.1);
+    padding:2px 8px;
+    border-radius:6px;
+    font-size:12px;
+    font-weight:500;
+  }
+  .log-entry .detail{ color:#E8E2D4; }
+  .log-entry .num{
+    font-family:'JetBrains Mono',monospace;
+    color:#D7C79A;
+    text-align:right;
+    font-weight:500;
+  }
+  .empty-log{
+    font-size:13px;
+    color:#6E9479;
+    padding:16px 0;
+    font-style:normal;
+    position:relative;
+    z-index:1;
+  }
+
+  /* ===== DETAILS/EXPAND ===== */
+  details[open] summary{ margin-bottom:8px; }
+  details summary{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    font-weight:500;
+    padding:4px 0;
+    transition:color .2s;
+  }
+  details summary:hover{ color:var(--forest); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width:640px) {
+    header{ padding:32px 16px 16px; }
+    h1{ font-size:24px; }
+    main{ padding:0 14px; }
+    .card{ padding:20px; }
+    .row2{ grid-template-columns:1fr; }
+    .log{ padding:20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Field Data Entry</div>
+  <h1>บันทึกภาคสนาม: การวัดต้นไม้</h1>
+  <p class="sub">กรอกข้อมูลตามลำดับ 1-4 แล้วกด "บันทึกการวัด" ระบบจะส่งข้อมูลตรงเข้า Supabase</p>
+</header>
+
+<div class="dash-link-wrap">
+  <a href="index2_v2.html" class="dash-link">📊 เปิดแดชบอร์ดและรายละเอียด</a>
+</div>
+
+<details class="config" id="configBox">
+  <summary>⚙ ตั้งค่าการเชื่อมต่อ Supabase (กดครั้งแรกเท่านั้น)</summary>
+  <div class="config-body">
+    <div class="field">
+      <label>Project URL</label>
+      <input type="text" id="supaUrl" placeholder="https://xxxxxxxx.supabase.co">
+    </div>
+    <div class="field">
+      <label>Anon Public Key</label>
+      <input type="text" id="supaKey" placeholder="eyJhbGciOi...">
+    </div>
+    <button class="btn-small" id="connectBtn" style="align-self:flex-start;">เชื่อมต่อ</button>
+    <div class="msg" id="connectMsg"></div>
+  </div>
+</details>
+
+<section class="card" id="authBox" style="display:none;">
+  <div class="step-title">เข้าสู่ระบบ</div>
+  <div class="sub" style="margin:6px 0 16px;">กรุณาเข้าสู่ระบบก่อนใช้งานระบบบันทึกข้อมูล</div>
+  <form id="authForm">
+    <div class="field">
+      <label for="authEmail">อีเมล</label>
+      <input type="email" id="authEmail" autocomplete="email" required>
+    </div>
+    <div class="field">
+      <label for="authPassword">รหัสผ่าน</label>
+      <input type="password" id="authPassword" autocomplete="current-password" required>
+    </div>
+    <button class="btn-small" type="submit" id="loginBtn">เข้าสู่ระบบ</button>
+    <button class="btn-small" type="button" id="logoutBtn" style="display:none;">ออกจากระบบ</button>
+  </form>
+  <div class="msg" id="authMsg"></div>
+</section>
+
+<main id="appMain" style="display:none;">
+
+  <!-- STEP 1: วงศ์ -->
+  <div class="card">
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">เลือกวงศ์</div>
+        <div class="step-desc">กรองรายชื่อต้นไม้ในขั้นถัดไป</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>ชื่อวงศ์</label>
+      <select id="speciesSelect" disabled>
+        <option value="">-- เชื่อมต่อฐานข้อมูลก่อน --</option>
+      </select>
+    </div>
+    <div class="inline-add">
+      <input type="text" id="newSpeciesName" placeholder="เพิ่มวงศ์ใหม่..." disabled>
+      <button class="btn-small" id="addSpeciesBtn" disabled>+ เพิ่มวงศ์</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: ต้นไม้ -->
+  <div class="card">
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div>
+        <div class="step-title">เลือกต้นไม้</div>
+        <div class="step-desc">รายชื่อจะกรองตามวงศ์ที่เลือกไว้</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>ชื่อต้น</label>
+      <input type="text" id="treeInput" disabled placeholder="พิมพ์ชื่อต้นหรือหมายเลข..." />
+    </div>
+    <div class="row2">
+      <div class="field" style="margin-bottom:0;">
+        <label>หมายเลขต้นไม้</label>
+        <div style="display:inline-flex; align-items:center; gap:10px;">
+            <input type="text" id="treeIdDisplay" placeholder="เช่น A005">
+            <button class="btn-small" id="autoTreeBtn" title="Auto กำหนดหมายเลขถัดไป">Auto</button>
+          </div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>โซน</label>
+        <input type="text" id="zoneDisplay" list="zoneList" placeholder="พิมพ์หรือเลือกโซน">
+        <datalist id="zoneList"></datalist>
+      </div>
+    </div>
+
+    <details style="margin-top:16px;">
+      <summary>+ ไม่พบต้นไม้ในลิสต์? เพิ่มต้นไม้ใหม่</summary>
+      <div style="margin-top:14px; display:flex; flex-direction:column; gap:12px; padding:16px; background:var(--forest-light); border-radius:12px; border:1px solid rgba(45,122,79,0.12);">
+        <div class="row2">
+          <div class="field" style="margin-bottom:0;">
+            <label>หมายเลขต้นไม้</label>
+            <div style="display:inline-flex; align-items:center; gap:10px;">
+            <input type="text" id="newTreeId" placeholder="เช่น A005">
+            <button class="btn-small" id="autoNewTreeBtn" title="Auto กำหนดหมายเลขถัดไป">Auto</button>
+          </div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>ชื่อต้น</label>
+            <input type="text" id="newTreeName" placeholder="เช่น ฝรั่ง">
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>โซน</label>
+          <select id="newTreeZone">
+            <option value="">-- ไม่ระบุ --</option>
+          </select>
+        </div>
+        <button class="btn-small" id="addTreeBtn" style="align-self:flex-start;">+ เพิ่มต้นไม้</button>
+      </div>
+    </details>
+  </div>
+
+  <!-- STEP 3: วันที่ -->
+  <div class="card">
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div>
+        <div class="step-title">วันที่เก็บข้อมูล</div>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:0;">
+      <label>วันที่วัด</label>
+      <input type="date" id="measureDate">
+    </div>
+  </div>
+
+  <!-- STEP 4: ค่าที่วัด -->
+  <div class="card">
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div>
+        <div class="step-title">ค่าที่วัดได้</div>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>ความสูง (เมตร)</label>
+        <input type="number" step="0.01" id="heightInput" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>เส้นรอบวง (ซม.)</label>
+        <input type="number" step="0.01" id="girthInput" placeholder="0.00">
+      </div>
+    </div>
+
+    <button class="btn-submit" id="submitBtn" disabled>บันทึกการวัด</button>
+    <div class="msg" id="submitMsg"></div>
+  </div>
+
+  <!-- SIGNATURE: running log -->
+  <div class="log">
+    <h2>สมุดบันทึกภาคสนาม — เซสชันนี้</h2>
+    <div class="count" id="logCount">ยังไม่มีรายการ</div>
+    <div id="logList">
+      <div class="empty-log">รายการที่บันทึกสำเร็จในเซสชันนี้จะแสดงที่นี่</div>
+    </div>
+  </div>
+
+  <!-- ERROR LOG -->
+  <div class="card" style="background:var(--err-light); border-color:rgba(192,57,43,0.2);">
+    <div style="display:flex; align-items:center; gap:14px; justify-content:space-between; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:30px;height:30px;border-radius:50%;background:var(--err);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">!</div>
+        <div class="step-title" style="color:var(--err);">บันทึกข้อผิดพลาด</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="btn-small" id="uploadErrorBtn" title="ส่ง log ขึ้น Supabase" style="border-color:var(--err);color:var(--err);">ส่ง log ขึ้น Supabase</button>
+        <button class="btn-small" id="clearErrorBtn" title="ล้าง log" style="border-color:var(--err);color:var(--err);">ล้าง log</button>
+      </div>
+    </div>
+    <div class="count" id="errorCount" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#8B6060;margin:10px 0;">ยังไม่มีข้อผิดพลาด</div>
+    <div id="errorLog" style="max-height:200px; overflow:auto; padding-top:10px; border-top:1px solid rgba(192,57,43,0.1);"></div>
+    <div id="errorActionMsg" style="margin-top:10px; font-size:13px; color:#6b6b6b"></div>
+  </div>
+
+</main>
+
+<script>
+let supabaseClient = null;
+let speciesData = [];
+let treesData = [];
+let zonesData = [];
+let sessionLog = [];
+
+const $ = (id) => document.getElementById(id);
+
+// Insert reuse-IDs checkbox into config UI if not present and persist setting
+(function(){
+  const container = document.querySelector('.config-body');
+  if(!container) return;
+  if(!document.getElementById('reuseIdsCheckbox')){
+    const div = document.createElement('div');
+    div.className = 'field';
+    div.innerHTML = `
+      <label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="reuseIdsCheckbox" style="width:auto;margin:0;"> ใช้หมายเลขที่ถูกลบกลับมาอัตโนมัติ (Reuse deleted IDs)</label>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">ถ้าเลือก: Auto จะมอบหมายหมายเลขที่ว่าง (เช่น A002) แทนการข้ามไปเลขถัดไป</div>
+    `;
+    const connectBtn = document.getElementById('connectBtn');
+    if(connectBtn) container.insertBefore(div, connectBtn);
+    else container.appendChild(div);
+  }
+  const cb = document.getElementById('reuseIdsCheckbox');
+  try{
+    const stored = localStorage.getItem('reuseIds');
+    cb.checked = stored === null ? true : (stored === 'true');
+  }catch(e){ cb.checked = true; }
+  cb.addEventListener('change', () => { try{ localStorage.setItem('reuseIds', cb.checked); }catch(e){} });
+})();
+
+// ---------- เชื่อมต่อ ----------
+$('connectBtn').addEventListener('click', async () => {
+  const url = $('supaUrl').value.trim();
+  const key = $('supaKey').value.trim();
+  const msg = $('connectMsg');
+
+  if(!url || !key){
+    showMsg(msg, 'กรุณากรอก URL และ Key ให้ครบ', 'err');
+    return;
+  }
+
+  try{
+    supabaseClient = window.supabase.createClient(url, key);
+    try{ localStorage.setItem('supaUrl', url); localStorage.setItem('supaKey', key); }catch(e){}
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if(session) await startAuthenticatedApp(session);
+    else {
+      $('authBox').style.display = 'block';
+      showMsg($('authMsg'), 'เชื่อมต่อแล้ว กรุณาเข้าสู่ระบบ', 'ok');
+      showMsg(msg, 'เชื่อมต่อสำเร็จ กรุณา Login', 'ok');
+    }
+  }catch(e){
+    logError(e, 'connect');
+    showMsg(msg, 'เชื่อมต่อไม่สำเร็จ: ' + e.message, 'err');
+  }
+});
+
+async function startAuthenticatedApp(session){
+  $('authBox').style.display = 'block';
+  $('authForm').style.display = 'none';
+  $('logoutBtn').style.display = 'inline-flex';
+  showMsg($('authMsg'), 'เข้าสู่ระบบแล้ว: ' + (session.user.email || ''), 'ok');
+  await loadSpecies();
+  await loadZones();
+  showMsg($('connectMsg'), '✓ เชื่อมต่อและเข้าสู่ระบบสำเร็จ', 'ok');
+  $('configBox').removeAttribute('open');
+  $('appMain').style.display = 'flex';
+  $('speciesSelect').disabled = false;
+  $('newSpeciesName').disabled = false;
+  $('addSpeciesBtn').disabled = false;
+  $('measureDate').valueAsDate = new Date();
+}
+
+$('authForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if(!supabaseClient){ showMsg($('authMsg'), 'กรุณาเชื่อมต่อ Supabase ก่อน', 'err'); return; }
+  const loginBtn = $('loginBtn');
+  loginBtn.disabled = true;
+  try{
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: $('authEmail').value.trim(),
+      password: $('authPassword').value
+    });
+    if(error) throw error;
+    await startAuthenticatedApp(data.session);
+  }catch(error){ showMsg($('authMsg'), 'เข้าสู่ระบบไม่สำเร็จ: ' + error.message, 'err'); }
+  finally{ loginBtn.disabled = false; }
+});
+
+$('logoutBtn').addEventListener('click', async () => {
+  if(supabaseClient) await supabaseClient.auth.signOut();
+  $('authForm').style.display = 'flex';
+  $('logoutBtn').style.display = 'none';
+  $('appMain').style.display = 'none';
+  showMsg($('authMsg'), 'ออกจากระบบแล้ว', 'ok');
+});
+
+function showMsg(el, text, type){
+  el.textContent = text;
+  el.className = 'msg show ' + type;
+}
+
+// ---------- โหลดวงศ์ ----------
+async function loadSpecies(){
+  const { data, error } = await supabaseClient.from('วงษ์').select('*');
+  if(error) throw error;
+  
+  data.sort((a, b) => (a.รหัสวงษ์ > b.รหัสวงษ์ ? 1 : -1));
+  
+  speciesData = data;
+  const sel = $('speciesSelect');
+  sel.innerHTML = '<option value="">-- เลือกวงศ์ --</option>' +
+    data.map(s => `<option value="${s.รหัสวงษ์}">${s.ชื่อวงษ์}</option>`).join('');
+}
+
+// ---------- โหลดโซน ----------
+async function loadZones(){
+  const { data, error } = await supabaseClient.from('โซน').select('*');
+  if(error) throw error;
+  
+  data.sort((a, b) => (a.รหัสโซน > b.รหัสโซน ? 1 : -1));
+  
+  zonesData = data;
+  const sel = $('newTreeZone');
+  sel.innerHTML = '<option value="">-- ไม่ระบุ --</option>' +
+    data.map(z => `<option value="${z.รหัสโซน}">${z.ชื่อโซน}</option>`).join('');
+  const zoneList = $('zoneList');
+  if(zoneList){
+    zoneList.innerHTML = (data||[]).map(z => `<option value="${z.ชื่อโซน}"></option>`).join('');
+  }
+}
+
+// ---------- เพิ่มวงศ์ใหม่ ----------
+$('addSpeciesBtn').addEventListener('click', async () => {
+  const name = $('newSpeciesName').value.trim();
+  if(!name) return;
+  const { error } = await supabaseClient.from('วงษ์').insert({ ชื่อวงษ์: name });
+  if(error){ alert('เพิ่มวงศ์ไม่สำเร็จ: ' + error.message); return; }
+  $('newSpeciesName').value = '';
+  await loadSpecies();
+});
+
+// ---------- เมื่อเลือกวงศ์ -> โหลดต้นไม้ ----------
+$('speciesSelect').addEventListener('change', async (e) => {
+  const speciesId = e.target.value;
+  const treeInput = $('treeInput');
+  const enteredTreeId = $('treeIdDisplay').value.trim();
+  $('zoneDisplay').value = '';
+  checkReadyToSubmit();
+
+  if(!speciesId){
+    treeInput.value = '';
+    treeInput.disabled = true;
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from('ต้นไม้')
+    .select('*');
+
+ if(error){ alert('โหลดต้นไม้ไม่สำเร็จ: ' + error.message); return; }
+  
+  const filteredTrees = data.filter(t => String(t.รหัสวงษ์) === String(speciesId));
+
+ treesData = filteredTrees;
+  treeInput.disabled = false;
+  treeInput.value = '';
+
+ try{
+   if(!enteredTreeId){
+     const nextId = await computeNextTreeId();
+     if(nextId) $('treeIdDisplay').value = nextId;
+     const newTreeInput = $('newTreeId');
+     if(newTreeInput && !newTreeInput.value) newTreeInput.value = nextId;
+   }
+ }catch(err){ console.warn('ไม่สามารถคำนวณหมายเลขถัดไป:', err); }
+
+ checkReadyToSubmit();
+});
+
+// ---------- เมื่อเลือกต้นไม้ -> auto-fill หมายเลข+โซน ----------
+function resolveTreeFromInput(val){
+  if(!val) return null;
+  const m = String(val).match(/\(([^)]+)\)\s*$/);
+  if(m && m[1]){
+    return treesData.find(t => String(t.หมายเลขต้นไม้) === String(m[1]));
+  }
+  let t = treesData.find(t => t.ชื่อต้น === val || String(t.หมายเลขต้นไม้) === String(val));
+  if(t) return t;
+  return treesData.find(t => t.ชื่อต้น && val && t.ชื่อต้น.indexOf(val) === 0);
+}
+
+async function computeNextTreeId(referenceId = ''){
+  function extractNumber(token){
+    if(!token) return null;
+    const s = String(token);
+    const digs = s.replace(/\D/g,'');
+    if(!digs) return null;
+    return parseInt(digs,10);
+  }
+
+  function fromListReuse(list, startAt = 1){
+    const used = {};
+    let maxNum = 0;
+    (list||[]).forEach(it => {
+      const n = extractNumber(it);
+      if(n !== null){ used[n] = true; if(n>maxNum) maxNum = n; }
+    });
+    const firstNumber = referenceId ? startAt : 1;
+    for(let i=firstNumber;i<=maxNum;i++){
+      if(!used[i]) return String(i).padStart(3,'0');
+    }
+    return String(Math.max(maxNum + 1, firstNumber)).padStart(3,'0');
+  }
+  function fromListNoReuse(list, startAt = 1){
+    let maxNum = 0;
+    (list||[]).forEach(it => { const n = extractNumber(it); if(n !== null && n>maxNum) maxNum = n; });
+    return String(Math.max(maxNum + 1, startAt)).padStart(3,'0');
+  }
+  function getReuseSetting(){ try{ const v = localStorage.getItem('reuseIds'); return v === null ? true : (v === 'true'); }catch(e){ return true; } }
+  const reuse = getReuseSetting();
+  const referenceNumber = extractNumber(referenceId);
+  const startAt = referenceNumber === null ? 1 : referenceNumber + 1;
+
+  try{
+    if(!supabaseClient) return reuse ? fromListReuse(treesData||[], startAt) : fromListNoReuse(treesData||[], startAt);
+    const { data, error } = await supabaseClient.from('ต้นไม้').select('หมายเลขต้นไม้');
+    if(error || !data) return reuse ? fromListReuse(treesData||[], startAt) : fromListNoReuse(treesData||[], startAt);
+    const ids = data.map(d => d.หมายเลขต้นไม้);
+    return reuse ? fromListReuse(ids, startAt) : fromListNoReuse(ids, startAt);
+  }catch(e){
+    console.warn('computeNextTreeId error', e);
+    return getReuseSetting() ? fromListReuse(treesData || [], startAt) : fromListNoReuse(treesData || [], startAt);
+  }
+}
+
+$('treeInput').addEventListener('change', async (e) => {
+  const val = e.target.value;
+  const tree = resolveTreeFromInput(val);
+  if(tree){
+    $('treeIdDisplay').value = tree.หมายเลขต้นไม้;
+    const zone = zonesData.find(z => z.รหัสโซน === tree.รหัสโซน);
+    $('zoneDisplay').value = zone ? zone.ชื่อโซน : '— ไม่ระบุ —';
+  } else {
+    if(!$('treeIdDisplay').value.trim()){
+      try{
+        const next = await computeNextTreeId();
+        if(next) $('treeIdDisplay').value = next;
+      }catch(err){ console.warn('computeNextTreeId failed', err); }
+    }
+    $('zoneDisplay').value = '';
+  }
+  checkReadyToSubmit();
+});
+
+$('treeIdDisplay').addEventListener('change', (e) => {
+  const id = e.target.value.trim();
+  if(!id) { checkReadyToSubmit(); return; }
+  const tree = (treesData||[]).find(t => String(t.หมายเลขต้นไม้) === String(id));
+  if(tree){
+    $('treeInput').value = tree.ชื่อต้น ? `${tree.ชื่อต้น} (${tree.หมายเลขต้นไม้})` : tree.หมายเลขต้นไม้;
+    const zone = zonesData.find(z => z.รหัสโซน === tree.รหัสโซน);
+    $('zoneDisplay').value = zone ? zone.ชื่อโซน : '';
+  }
+  checkReadyToSubmit();
+});
+
+  (function(){
+    const autoBtn = $('autoTreeBtn');
+    if(autoBtn){
+      autoBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try{
+          const next = await computeNextTreeId($('newTreeId').value.trim());
+          if(next) $('treeIdDisplay').value = next;
+        }catch(err){ console.warn('Auto computeNextTreeId failed', err); }
+        checkReadyToSubmit();
+      });
+    }
+
+    const autoNewBtn = $('autoNewTreeBtn');
+    if(autoNewBtn){
+      autoNewBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try{
+          const next = await computeNextTreeId();
+          if(next) $('newTreeId').value = next;
+        }catch(err){ console.warn('Auto new computeNextTreeId failed', err); }
+      });
+    }
+  })();
+
+  // ---------- เพิ่มต้นไม้ใหม่ ----------
+$('addTreeBtn').addEventListener('click', async () => {
+  const id = $('newTreeId').value.trim();
+  const name = $('newTreeName').value.trim();
+  const speciesId = $('speciesSelect').value;
+  const zoneId = $('newTreeZone').value || null;
+
+  if(!id || !name || !speciesId){
+    alert('กรุณากรอกหมายเลขต้นไม้ ชื่อต้น และเลือกวงศ์ (ขั้นที่ 1) ก่อน');
+    return;
+  }
+
+  try{
+    if(id){
+      const safeName = name;
+      const { error: insertErr } = await supabaseClient.from('ต้นไม้').insert({ หมายเลขต้นไม้: id, ชื่อต้น: safeName, รหัสวงษ์: speciesId, รหัสโซน: zoneId });
+      if(insertErr){
+        if(insertErr.code && insertErr.code === '23505'){
+          alert('หมายเลขนี้ถูกใช้แล้ว โปรดเลือกหมายเลขอื่น');
+          return;
+        } else { console.error('Insert failed', insertErr); alert('เพิ่มต้นไม้ไม่สำเร็จ: ' + insertErr.message); logError(insertErr, 'addTree insert'); return; }
+      }
+      $('newTreeId').value = '';
+      $('newTreeName').value = '';
+      try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+      $('speciesSelect').dispatchEvent(new Event('change'));
+      return;
+    }
+
+    let attempts = 0;
+    let allocated = null;
+    while(attempts < 6 && !allocated){
+      attempts++;
+      const candidate = await computeNextTreeId();
+      const safeName = name || ('ต้นไม้ ' + new Date().toISOString());
+      try{
+        const { error: insErr } = await supabaseClient.from('ต้นไม้').insert({ หมายเลขต้นไม้: candidate, ชื่อต้น: safeName, รหัสวงษ์: speciesId, รหัสโซน: zoneId });
+        if(insErr){
+          if(insErr.code && insErr.code === '23505'){
+            console.warn('addTree race detected, retrying', attempts);
+            try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+            continue;
+          } else { console.error('Insert failed', insErr); alert('เพิ่มต้นไม้ไม่สำเร็จ: ' + insErr.message); logError(insErr, 'addTree insert'); return; }
+        }
+        allocated = candidate;
+        try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+      }catch(e){ console.error('addTree insert exception', e); logError(e, 'addTree insert exception'); }
+    }
+
+    if(!allocated){ alert('ไม่สามารถจัดสรรหมายเลขต้นไม้ใหม่ได้ในขณะนี้ ลองอีกครั้ง'); return; }
+
+    $('newTreeId').value = '';
+    $('newTreeName').value = '';
+    $('speciesSelect').dispatchEvent(new Event('change'));
+
+    let newRow = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    const newId = newRow ? (newRow.หมายเลขต้นไม้ || Object.values(newRow)[0]) : null;
+    if(newId) $('newTreeId').value = '';
+    $('newTreeName').value = '';
+    try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+    $('speciesSelect').dispatchEvent(new Event('change'));
+  }catch(e){ console.error('addTree RPC error', e); alert('เพิ่มต้นไม้ไม่สำเร็จ: ' + (e.message||e)); logError(e, 'addTree rpc'); }
+});
+
+// ---------- ตรวจว่าพร้อมส่งหรือยัง ----------
+function checkReadyToSubmit(){
+  const ready = $('treeIdDisplay').value && $('measureDate').value;
+  $('submitBtn').disabled = !ready;
+}
+$('measureDate').addEventListener('change', checkReadyToSubmit);
+$('heightInput').addEventListener('input', checkReadyToSubmit);
+$('girthInput').addEventListener('input', checkReadyToSubmit);
+
+// ---------- บันทึกการวัด ----------
+$('submitBtn').addEventListener('click', async (e) => {
+  try {
+    const treeId = $('treeIdDisplay').value;
+    if(!treeId) return;
+    const speciesId = $('speciesSelect') ? $('speciesSelect').value : null;
+    const treeName = $('treeInput') ? $('treeInput').value.trim() : '';
+    let zoneName = $('zoneDisplay') ? $('zoneDisplay').value : '';
+    zoneName = String(zoneName).trim();
+
+    const resolveZoneId = (name) => {
+      if(!name) return null;
+      const cleaned = String(name).trim();
+      if(!cleaned || cleaned === '— ไม่ระบุ —' || cleaned === '-- ไม่ระบุ --') return null;
+      const byId = (zonesData||[]).find(z => String(z.รหัสโซน) === cleaned);
+      if(byId) return byId.รหัสโซน;
+      const byName = (zonesData||[]).find(z => String(z.ชื่อโซน).trim().toLowerCase() === cleaned.toLowerCase());
+      if(byName) return byName.รหัสโซน;
+      return null;
+    };
+    const resolvedZoneId = resolveZoneId(zoneName);
+
+    const { data: allTrees, error: tErr } = await supabaseClient.from('ต้นไม้').select('*');
+    if(tErr){ console.warn('pre-submit tree lookup failed', tErr); logError(tErr, 'pre-submit tree lookup'); return; }
+    const found = (allTrees||[]).find(t => String(t.หมายเลขต้นไม้) === String(treeId));
+
+    if(!found){
+      if(!treeId){
+        const safeNameBase = (treeName && treeName.length) ? treeName : ('ต้นไม้ ' + new Date().toISOString());
+        let allocated = null;
+        for(let attempt=1; attempt<=6 && !allocated; attempt++){
+          try{
+            const candidate = await computeNextTreeId();
+            const safeName = safeNameBase;
+            const { error: insErr } = await supabaseClient.from('ต้นไม้').insert({ หมายเลขต้นไม้: candidate, ชื่อต้น: safeName, รหัสวงษ์: speciesId, รหัสโซน: resolvedZoneId });
+            if(insErr){
+              if(insErr.code && insErr.code === '23505'){
+                console.warn('pre-submit race detected, retrying allocation', attempt);
+                try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+                continue;
+              } else {
+                console.warn('pre-submit insert failed', insErr); logError(insErr, 'pre-submit insert');
+                break;
+              }
+            }
+            allocated = candidate;
+            try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+          }catch(err){ console.warn('pre-submit insert exception', err); logError(err, 'pre-submit insert exception'); }
+        }
+        if(!allocated) console.warn('pre-submit: could not allocate id');
+      } else {
+        try{
+          const safeName = (treeName && treeName.length) ? treeName : treeId;
+          const { error: insertErr } = await supabaseClient.from('ต้นไม้').insert({ หมายเลขต้นไม้: treeId, ชื่อต้น: safeName, รหัสวงษ์: speciesId, รหัสโซน: resolvedZoneId });
+          if(insertErr){
+            if(insertErr.code && insertErr.code === '23505'){
+              console.warn('pre-submit insert duplicate, ignoring');
+            } else { console.warn('pre-submit insert failed', insertErr); logError(insertErr, 'pre-submit insert'); }
+          } else {
+            try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+          }
+        }catch(err){ console.warn('pre-submit insert fallback error', err); logError(err, 'pre-submit insert fallback'); }
+      }
+    } else {
+      if((found.รหัสโซน === null || found.รหัสโซน === undefined || found.รหัสโซน === '') && resolvedZoneId){
+        try{
+          const { error: updErr } = await supabaseClient.from('ต้นไม้').update({ รหัสโซน: resolvedZoneId }).eq('หมายเลขต้นไม้', treeId);
+          if(updErr){ console.warn('pre-submit update zone failed', updErr); logError(updErr, 'pre-submit update zone'); }
+          else { try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){} }
+        }catch(err){ console.warn('pre-submit update error', err); }
+      }
+    }
+
+  } catch(e){ console.warn('pre-submit helper error', e); logError(e, 'pre-submit helper error'); }
+}, true);
+
+$('submitBtn').addEventListener('click', async () => {
+  const treeId = $('treeIdDisplay').value;
+  const dateVal = $('measureDate').value;
+  const height = $('heightInput').value || null;
+  const girth = $('girthInput').value || null;
+  const msg = $('submitMsg');
+
+  if(!treeId || !dateVal){
+    showMsg(msg, 'กรุณาเลือกต้นไม้และวันที่ให้ครบ', 'err');
+    return;
+  }
+
+  $('submitBtn').disabled = true;
+  $('submitBtn').textContent = 'กำลังบันทึก...';
+
+  try{
+  const speciesId = $('speciesSelect').value;
+    const treeName = $('treeInput').value.trim();
+    const zoneName = $('zoneDisplay').value.trim();
+  if(!speciesId){ showMsg(msg, 'กรุณาเลือกวงศ์ของต้นไม้ก่อนบันทึก (ขั้นที่ 1)', 'err'); throw new Error('missing species'); }
+
+    const { data: allTrees, error: treeSelectErr } = await supabaseClient.from('ต้นไม้').select('*');
+    if(treeSelectErr) throw treeSelectErr;
+    const existingTree = (allTrees||[]).find(t => String(t.หมายเลขต้นไม้) === String(treeId));
+    if(!existingTree){
+      let zoneId = null;
+      if(zoneName){
+        const z = (zonesData||[]).find(zz => String(zz.ชื่อโซน) === String(zoneName));
+        if(z) zoneId = z.รหัสโซน;
+      }
+      const { error: insertTreeErr } = await supabaseClient.from('ต้นไม้').insert({
+        หมายเลขต้นไม้: treeId,
+        ชื่อต้น: treeName || null,
+        รหัสวงษ์: speciesId,
+        รหัสโซน: zoneId
+      });
+      if(insertTreeErr) throw insertTreeErr;
+      try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+    }
+
+    const { data: datesList, error: dateSelectErr } = await supabaseClient
+    .from('วันที่').select('*');
+    
+    if(dateSelectErr) throw dateSelectErr;
+
+    const existingDate = datesList.find(d => d.วันที่วัด === dateVal);
+
+    let dateId;
+    if(existingDate){
+      dateId = existingDate.รหัสวันที่;
+    }else{
+      const { data: newDate, error: dateErr } = await supabaseClient
+      .from('วันที่').insert({ วันที่วัด: dateVal }).select().single();
+      if(dateErr) throw dateErr;
+      dateId = newDate.รหัสวันที่;
+    }
+
+    const { data: result, error: measureErr } = await supabaseClient
+      .from('การวัด')
+      .insert({
+        หมายเลขต้นไม้: treeId,
+        ความสูง: height,
+        เส้นรอบวง: girth,
+        รหัสวันที่: dateId
+      })
+      .select().single();
+
+    if(measureErr) throw measureErr;
+
+    showMsg(msg, '✓ บันทึกข้อมูลการวัดสำเร็จแล้ว', 'ok');
+    addToLog(treeId, dateVal, height, girth);
+
+    $('heightInput').value = '';
+    $('girthInput').value = '';
+
+  }catch(err){
+    logError(err, 'submit measurement');
+    showMsg(msg, '✕ บันทึกไม่สำเร็จ: ' + (err.message || err), 'err');
+  }finally{
+    $('submitBtn').disabled = false;
+    $('submitBtn').textContent = 'บันทึกการวัด';
+    checkReadyToSubmit();
+  }
+});
+
+// ---------- ERROR LOGGING helpers ----------
+let errorLog = [];
+function formatError(e){
+  try{
+    if(!e) return 'Unknown error';
+    if(e instanceof Error) return e.message + ' | ' + (e.stack||'');
+    if(typeof e === 'string') return e;
+    return JSON.stringify(e);
+  }catch(x){ return String(e); }
+}
+function logError(err, context){
+  try{
+    const ts = new Date().toISOString();
+    const item = { time: ts, context: context || 'general', message: formatError(err) };
+    errorLog.unshift(item);
+    console.error('[LOG_ERROR]', item.context, item.message);
+    renderErrorLog();
+    const emsg = $('connectMsg') || $('submitMsg');
+    if(emsg) emsg.textContent = `${item.context}: ${item.message}`;
+    try{ localStorage.setItem('errorLog', JSON.stringify(errorLog.slice(0,50))); }catch(e){}
+  }catch(e2){ console.error('logError failed', e2); }
+}
+
+function renderErrorLog(){
+  const el = $('errorLog');
+  const cnt = $('errorCount');
+  if(!el) return;
+  if(errorLog.length === 0){
+    cnt.textContent = 'ยังไม่มีข้อผิดพลาด';
+    el.innerHTML = '';
+    return;
+  }
+  cnt.textContent = `ข้อผิดพลาด ${errorLog.length} รายการ`;
+  el.innerHTML = errorLog.map(e => `<div style="padding:10px;border-bottom:1px solid rgba(192,57,43,0.1);"><div style="font-size:12px;color:#A23E32;font-family:'JetBrains Mono',monospace;margin-bottom:4px;">${e.context} · ${e.time}</div><div style="font-size:13px;white-space:pre-wrap;color:#5A3030;">${e.message}</div></div>`).join('');
+}
+
+try{ const stored = JSON.parse(localStorage.getItem('errorLog')||'[]'); if(Array.isArray(stored)) { errorLog = stored.concat(errorLog); renderErrorLog(); } }catch(e){}
+
+window.addEventListener('error', (ev) => { logError(ev.error || ev.message || ev, 'uncaught error'); });
+window.addEventListener('unhandledrejection', (ev) => { logError(ev.reason || ev, 'unhandledrejection'); });
+
+function clearErrorLog(){
+  errorLog = [];
+  try{ localStorage.removeItem('errorLog'); }catch(e){}
+  renderErrorLog();
+  const a = $('errorActionMsg'); if(a) a.textContent = 'ล้าง log เรียบร้อย';
+}
+
+async function uploadErrorLog(){
+  const a = $('errorActionMsg'); if(a) a.textContent = '';
+  if(!supabaseClient){ if(a) a.textContent = 'ต้องเชื่อมต่อ Supabase ก่อน (connect)'; return; }
+  if(!errorLog || errorLog.length === 0){ if(a) a.textContent = 'ไม่มีรายการใน log ที่จะส่ง'; return; }
+
+  const rows = errorLog.map(e => ({
+    ts: e.time,
+    context: e.context,
+    message: e.message
+  }));
+
+  try{
+    const { data, error } = await supabaseClient.from('error_logs').insert(rows);
+    if(error){
+      logError(error, 'uploadErrorLog');
+      if(a) a.textContent = 'ส่งไม่สำเร็จ: ' + (error.message || JSON.stringify(error));
+      return;
+    }
+    if(a) a.textContent = 'ส่ง log ขึ้นฐานข้อมูลเรียบร้อย (' + (data?data.length:rows.length) + ' รายการ)';
+  }catch(err){
+    logError(err, 'uploadErrorLog');
+    if(a) a.textContent = 'ส่งไม่สำเร็จ: ' + (err.message || err);
+  }
+}
+
+try{
+  const btnClear = $('clearErrorBtn');
+  if(btnClear) btnClear.addEventListener('click', () => { if(confirm('ล้างรายการข้อผิดพลาดทั้งหมดจากหน้าและ localStorage ใช่หรือไม่?')) clearErrorLog(); });
+  const btnUpload = $('uploadErrorBtn');
+  if(btnUpload) btnUpload.addEventListener('click', () => {
+    if(!confirm('จะส่ง error log ขึ้นฐานข้อมูล (ตาราง error_logs) ใช่หรือไม่? \n(ต้องมีสิทธิ์ INSERT และตารางต้องมีคอลัมน์ ts, context, message)')) return;
+    uploadErrorLog();
+  });
+}catch(e){ console.warn('error log buttons bind failed', e); }
+
+
+// ---------- สมุดบันทึก ----------
+function addToLog(treeId, date, height, girth){
+  sessionLog.unshift({ treeId, date, height, girth, time: new Date() });
+  renderLog();
+}
+function renderLog(){
+  const list = $('logList');
+  const count = $('logCount');
+  if(sessionLog.length === 0){
+    count.textContent = 'ยังไม่มีรายการ';
+    list.innerHTML = '<div class="empty-log">รายการที่บันทึกสำเร็จในเซสชันนี้จะแสดงที่นี่</div>';
+    return;
+  }
+  count.textContent = `บันทึกแล้ว ${sessionLog.length} รายการ`;
+  list.innerHTML = sessionLog.map(e => `
+    <div class="log-entry">
+      <span class="tag">${e.treeId}</span>
+      <span class="detail">${e.date}${e.height ? ' · สูง ' + e.height + 'ม.' : ''}</span>
+      <span class="num">${e.girth ? e.girth + ' ซม.' : '—'}</span>
+    </div>
+  `).join('');
+}
+
+// --- Override submit with a robust capture-phase handler ---
+(function(){
+  const btn = $('submitBtn');
+  if(!btn) return;
+  btn.addEventListener('click', async (ev) => {
+    ev.stopImmediatePropagation();
+    ev.preventDefault();
+
+    const treeId = $('treeIdDisplay').value;
+    const dateVal = $('measureDate').value;
+    const height = $('heightInput').value || null;
+    const girth = $('girthInput').value || null;
+    const msg = $('submitMsg');
+
+    if(!treeId || !dateVal){ showMsg(msg, 'กรุณาเลือกต้นไม้และวันที่ให้ครบ', 'err'); return; }
+    $('submitBtn').disabled = true;
+    $('submitBtn').textContent = 'กำลังบันทึก...';
+
+    try{
+      const speciesId = $('speciesSelect').value;
+      const treeName = ($('treeInput').value || '').trim();
+      const zoneName = ($('zoneDisplay').value || '').trim();
+      if(!speciesId){ showMsg(msg, 'กรุณาเลือกวงศ์ของต้นไม้ก่อนบันทึก (ขั้นที่ 1)', 'err'); throw new Error('missing species'); }
+
+      const { data: allTrees, error: treeSelectErr } = await supabaseClient.from('ต้นไม้').select('*');
+      if(treeSelectErr) throw treeSelectErr;
+      const existingTree = (allTrees||[]).find(t => String(t.หมายเลขต้นไม้) === String(treeId));
+      if(!existingTree){
+        let zoneId = null;
+        if(zoneName){
+          const z = (zonesData||[]).find(zz => String(zz.ชื่อโซน) === String(zoneName));
+          if(z) zoneId = z.รหัสโซน;
+        }
+        const safeName = (treeName && treeName.length) ? treeName : treeId;
+        try{
+          const { error: insertTreeErr } = await supabaseClient.from('ต้นไม้').insert({
+            หมายเลขต้นไม้: treeId,
+            ชื่อต้น: safeName,
+            รหัสวงษ์: speciesId,
+            รหัสโซน: zoneId
+          });
+          if(insertTreeErr){
+            if(insertTreeErr.code && insertTreeErr.code === '23505'){
+              console.warn('submit override: insert duplicate, ignoring');
+            } else {
+              throw insertTreeErr;
+            }
+          }
+        }catch(innerErr){
+          if(innerErr && (innerErr.code === '23505' || (innerErr.message && String(innerErr.message).toLowerCase().includes('duplicate key')))){
+            console.warn('submit override: detected duplicate key, ignoring', innerErr);
+          } else {
+            throw innerErr;
+          }
+        }
+        try{ const { data: refreshed } = await supabaseClient.from('ต้นไม้').select('*'); treesData = refreshed || []; }catch(e){}
+      }
+
+      const { data: datesList, error: dateSelectErr } = await supabaseClient.from('วันที่').select('*');
+      if(dateSelectErr) throw dateSelectErr;
+      const existingDate = (datesList||[]).find(d => d.วันที่วัด === dateVal);
+      let dateId;
+      if(existingDate){ dateId = existingDate.รหัสวันที่; }
+      else{
+        const { data: newDate, error: dateErr } = await supabaseClient.from('วันที่').insert({ วันที่วัด: dateVal }).select().single();
+        if(dateErr) throw dateErr; dateId = newDate.รหัสวันที่;
+      }
+
+      const { data: result, error: measureErr } = await supabaseClient.from('การวัด').insert({
+        หมายเลขต้นไม้: treeId,
+        ความสูง: height,
+        เส้นรอบวง: girth,
+        รหัสวันที่: dateId
+      }).select().single();
+
+      if(measureErr) throw measureErr;
+      showMsg(msg, '✓ บันทึกข้อมูลการวัดสำเร็จแล้ว', 'ok');
+      addToLog(treeId, dateVal, height, girth);
+      $('heightInput').value = '';
+      $('girthInput').value = '';
+
+    }catch(err){
+      logError(err, 'submit measurement (override)');
+      showMsg(msg, '✕ บันทึกไม่สำเร็จ: ' + (err.message || err), 'err');
+    }finally{
+      $('submitBtn').disabled = false;
+      $('submitBtn').textContent = 'บันทึกการวัด';
+      checkReadyToSubmit();
+    }
+  }, true);
+})();
+</script>
+
+</body>
+</html>
