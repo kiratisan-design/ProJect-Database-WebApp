@@ -595,8 +595,12 @@
       </div>
       <div class="field" style="margin-bottom:0;">
         <label>โซน</label>
-        <input type="text" id="zoneDisplay" list="zoneList" placeholder="พิมพ์หรือเลือกโซน">
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="zoneDisplay" list="zoneList" placeholder="พิมพ์หรือเลือกโซน" style="flex:1;">
+          <button class="btn-small" id="addZoneBtn" type="button" title="เพิ่มโซนนี้เข้าระบบทันที">+ เพิ่มโซน</button>
+        </div>
         <datalist id="zoneList"></datalist>
+        <div id="zoneHint" style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;"></div>
       </div>
     </div>
 
@@ -870,6 +874,72 @@ async function loadZones(){
   }
 }
 
+// ---------- หาโซนที่มีอยู่ หรือสร้างโซนใหม่ถ้ายังไม่มี ----------
+// ป้องกันปัญหา: พิมพ์ชื่อโซนใหม่แล้วไม่ถูกบันทึกลงตาราง 'โซน' จริง
+// ทำให้ dropdown กรองโซนที่หน้าแดชบอร์ดไม่มีตัวเลือกให้เลือก
+async function getOrCreateZoneId(name){
+  const cleaned = String(name || '').trim();
+  if(!cleaned || cleaned === '— ไม่ระบุ —' || cleaned === '-- ไม่ระบุ --') return null;
+
+  // ถ้าพิมพ์เป็นรหัสโซนตรงๆ
+  const byId = (zonesData || []).find(z => String(z.รหัสโซน) === cleaned);
+  if(byId) return byId.รหัสโซน;
+
+  // ถ้าชื่อโซนตรงกับที่มีอยู่แล้ว (ไม่สนตัวพิมพ์เล็ก-ใหญ่)
+  const byName = (zonesData || []).find(z => String(z.ชื่อโซน).trim().toLowerCase() === cleaned.toLowerCase());
+  if(byName) return byName.รหัสโซน;
+
+  // ไม่พบ -> สร้างโซนใหม่ในฐานข้อมูลทันที
+  try{
+    const { data: newZone, error } = await supabaseClient
+      .from('โซน').insert({ ชื่อโซน: cleaned }).select().single();
+    if(error){
+      // เผื่อเกิด race condition ซ้ำกับที่คนอื่นเพิ่งเพิ่มพร้อมกัน
+      if(error.code === '23505'){
+        const { data: refreshed } = await supabaseClient.from('โซน').select('*');
+        zonesData = refreshed || zonesData;
+        const found = (zonesData || []).find(z => String(z.ชื่อโซน).trim().toLowerCase() === cleaned.toLowerCase());
+        if(found) return found.รหัสโซน;
+      }
+      throw error;
+    }
+    zonesData = [...(zonesData || []), newZone];
+    try{ await loadZones(); }catch(e){}
+    return newZone.รหัสโซน;
+  }catch(e){
+    logError(e, 'getOrCreateZoneId');
+    return null;
+  }
+}
+
+// ---------- ปุ่ม + เพิ่มโซน (เพิ่มโซนเข้าระบบทันทีโดยไม่ต้องรอบันทึกการวัด) ----------
+$('addZoneBtn').addEventListener('click', async () => {
+  const hint = $('zoneHint');
+  const name = ($('zoneDisplay').value || '').trim();
+  if(!supabaseClient){ hint.textContent = 'กรุณาเชื่อมต่อฐานข้อมูลก่อน'; hint.style.color = 'var(--err)'; return; }
+  if(!name){ hint.textContent = 'กรุณาพิมพ์ชื่อโซนก่อน'; hint.style.color = 'var(--err)'; return; }
+
+  const existing = (zonesData || []).find(z => String(z.ชื่อโซน).trim().toLowerCase() === name.toLowerCase());
+  if(existing){ hint.textContent = 'โซนนี้มีอยู่แล้วในระบบ'; hint.style.color = 'var(--ink-soft)'; return; }
+
+  $('addZoneBtn').disabled = true;
+  try{
+    const id = await getOrCreateZoneId(name);
+    if(id){
+      hint.textContent = '✓ เพิ่มโซน "' + name + '" เข้าระบบแล้ว';
+      hint.style.color = 'var(--ok)';
+    }else{
+      hint.textContent = 'เพิ่มโซนไม่สำเร็จ กรุณาลองใหม่';
+      hint.style.color = 'var(--err)';
+    }
+  }catch(e){
+    hint.textContent = 'เพิ่มโซนไม่สำเร็จ: ' + (e.message || e);
+    hint.style.color = 'var(--err)';
+  }finally{
+    $('addZoneBtn').disabled = false;
+  }
+});
+
 // ---------- เพิ่มวงศ์ใหม่ ----------
 $('addSpeciesBtn').addEventListener('click', async () => {
   const name = $('newSpeciesName').value.trim();
@@ -1113,17 +1183,7 @@ $('submitBtn').addEventListener('click', async (e) => {
     let zoneName = $('zoneDisplay') ? $('zoneDisplay').value : '';
     zoneName = String(zoneName).trim();
 
-    const resolveZoneId = (name) => {
-      if(!name) return null;
-      const cleaned = String(name).trim();
-      if(!cleaned || cleaned === '— ไม่ระบุ —' || cleaned === '-- ไม่ระบุ --') return null;
-      const byId = (zonesData||[]).find(z => String(z.รหัสโซน) === cleaned);
-      if(byId) return byId.รหัสโซน;
-      const byName = (zonesData||[]).find(z => String(z.ชื่อโซน).trim().toLowerCase() === cleaned.toLowerCase());
-      if(byName) return byName.รหัสโซน;
-      return null;
-    };
-    const resolvedZoneId = resolveZoneId(zoneName);
+    const resolvedZoneId = await getOrCreateZoneId(zoneName);
 
     const { data: allTrees, error: tErr } = await supabaseClient.from('ต้นไม้').select('*');
     if(tErr){ console.warn('pre-submit tree lookup failed', tErr); logError(tErr, 'pre-submit tree lookup'); return; }
@@ -1204,11 +1264,7 @@ $('submitBtn').addEventListener('click', async () => {
     if(treeSelectErr) throw treeSelectErr;
     const existingTree = (allTrees||[]).find(t => String(t.หมายเลขต้นไม้) === String(treeId));
     if(!existingTree){
-      let zoneId = null;
-      if(zoneName){
-        const z = (zonesData||[]).find(zz => String(zz.ชื่อโซน) === String(zoneName));
-        if(z) zoneId = z.รหัสโซน;
-      }
+      const zoneId = await getOrCreateZoneId(zoneName);
       const { error: insertTreeErr } = await supabaseClient.from('ต้นไม้').insert({
         หมายเลขต้นไม้: treeId,
         ชื่อต้น: treeName || null,
@@ -1399,11 +1455,7 @@ function renderLog(){
       if(treeSelectErr) throw treeSelectErr;
       const existingTree = (allTrees||[]).find(t => String(t.หมายเลขต้นไม้) === String(treeId));
       if(!existingTree){
-        let zoneId = null;
-        if(zoneName){
-          const z = (zonesData||[]).find(zz => String(zz.ชื่อโซน) === String(zoneName));
-          if(z) zoneId = z.รหัสโซน;
-        }
+        const zoneId = await getOrCreateZoneId(zoneName);
         const safeName = (treeName && treeName.length) ? treeName : treeId;
         try{
           const { error: insertTreeErr } = await supabaseClient.from('ต้นไม้').insert({

@@ -406,6 +406,7 @@
     let treeMap = {};
     let speciesRows = [];
     let zoneRows = [];
+    let measureIdCol = 'รหัสการวัด'; // ชื่อคอลัมน์รหัสหลักของตาราง การวัด (ตรวจสอบอัตโนมัติใน loadDashboard)
 
     if(localStorage.getItem('supaUrl')) $('supaUrl2').value = localStorage.getItem('supaUrl');
     if(localStorage.getItem('supaKey')) $('supaKey2').value = localStorage.getItem('supaKey');
@@ -494,6 +495,18 @@
         zoneRows = zRows || [];
         dateMap = {};
         treeMap = {};
+
+        // ---------- ตรวจหาชื่อคอลัมน์รหัสหลัก (Primary Key) ของตาราง "การวัด" อัตโนมัติ ----------
+        // เดิมโค้ดคาดว่าคอลัมน์ชื่อ "รหัสการวัด" แต่ถ้าตารางจริงตั้งชื่อไม่ตรงกัน (เช่น "รหัส" หรือ "id")
+        // จะทำให้ query ทุกตัวที่อ้างอิงคอลัมน์นี้ error ว่า "column ... does not exist"
+        // โค้ดด้านล่างนี้จะหาจากคีย์จริงของแถวข้อมูลที่ดึงมา แทนการ hardcode ชื่อคอลัมน์
+        measureIdCol = 'รหัสการวัด';
+        if(measuresRaw.length && !(measureIdCol in measuresRaw[0])){
+          const keys = Object.keys(measuresRaw[0]);
+          const candidates = keys.filter(k => k === 'id' || k.toLowerCase() === 'id' || (k.includes('รหัส') && k.includes('วัด')));
+          measureIdCol = candidates[0] || keys.find(k => k.includes('รหัส')) || keys[0];
+          console.warn('ไม่พบคอลัมน์ "รหัสการวัด" ในตาราง การวัด — ใช้คอลัมน์ "' + measureIdCol + '" แทนโดยอัตโนมัติ (คีย์ทั้งหมดที่พบ: ' + keys.join(', ') + ')');
+        }
         (dateRows||[]).forEach(d => { dateMap[d.รหัสวันที่] = d; });
         (treeRows||[]).forEach(t => { treeMap[t.หมายเลขต้นไม้] = t; });
 
@@ -529,7 +542,7 @@
         if(measuresRaw && measuresRaw.sort){
           measuresRaw.sort((a,b)=>{
             if(a.created_at && b.created_at) return new Date(b.created_at) - new Date(a.created_at);
-            if(a.รหัสการวัด && b.รหัสการวัด) return (b.รหัสการวัด||0) - (a.รหัสการวัด||0);
+            if(a[measureIdCol] && b[measureIdCol]) return (b[measureIdCol]||0) - (a[measureIdCol]||0);
             return 0;
           });
         }
@@ -577,7 +590,7 @@
             const tree = treeMap[m.หมายเลขต้นไม้] || {};
             const dateLabel = dateRow.วันที่วัด || (m.รหัสวันที่ || '—');
             const timeLabel = m.created_at || dateLabel;
-            const rowId = m.รหัสการวัด;
+            const rowId = m[measureIdCol];
             return `<tr data-id="${rowId}"><td>${timeLabel}</td><td>${m.หมายเลขต้นไม้ || '—'}</td><td>${tree.ชื่อต้น || '—'}</td><td>${m.ความสูง || '—'}</td><td>${m.เส้นรอบวง || '—'}</td>
               <td><div class="row-actions">
                 <button class="btn-tiny" onclick="openEditModal('${rowId}')">แก้ไข</button>
@@ -601,7 +614,7 @@
     let editingId = null;
 
     function openEditModal(rowId){
-      const m = (measuresRaw || []).find(x => String(x.รหัสการวัด) === String(rowId));
+      const m = (measuresRaw || []).find(x => String(x[measureIdCol]) === String(rowId));
       if(!m){ return; }
       editingId = rowId;
       const dateRow = dateMap[m.รหัสวันที่] || {};
@@ -641,10 +654,17 @@
           dateMap[dateId] = newDateRow;
         }
 
-        const { error: updateErr } = await supabaseClient2
-          .from('การวัด')
-          .update({ ความสูง: newHeight, เส้นรอบวง: newGirth, รหัสวันที่: dateId })
-          .eq('รหัสการวัด', editingId);
+        // ใช้ RPC function แทน .update().eq() ตรงๆ เพราะการส่งชื่อคอลัมน์ภาษาไทย
+        // ("รหัสการวัด") ผ่าน query string ของ .eq() ทำให้ Supabase client บางเวอร์ชัน
+        // ตัดข้อความ (encoding bug) จนกลายเป็น "column การวัด.รห does not exist"
+        // การย้ายไปทำผ่านฟังก์ชันใน SQL (update_measurement) หลีกเลี่ยงปัญหานี้เพราะ
+        // ชื่อคอลัมน์ถูกใช้ภายใน SQL โดยตรง ไม่ผ่าน URL เลย
+        const { error: updateErr } = await supabaseClient2.rpc('update_measurement', {
+          p_id: Number(editingId),
+          p_height: newHeight === null ? null : Number(newHeight),
+          p_girth: newGirth === null ? null : Number(newGirth),
+          p_date_id: Number(dateId)
+        });
         if(updateErr) throw updateErr;
 
         closeEditModal();
@@ -662,7 +682,9 @@
       if(!supabaseClient2){ return; }
       if(!confirm('ยืนยันการลบรายการนี้? การลบไม่สามารถย้อนกลับได้')) return;
       try{
-        const { error } = await supabaseClient2.from('การวัด').delete().eq('รหัสการวัด', rowId);
+        // ใช้ RPC function เช่นเดียวกับตอนแก้ไข เพื่อเลี่ยงบั๊กการส่งชื่อคอลัมน์ภาษาไทย
+        // ผ่าน query string ของ .eq() (ดูคำอธิบายใน editSaveBtn ด้านบน)
+        const { error } = await supabaseClient2.rpc('delete_measurement', { p_id: Number(rowId) });
         if(error) throw error;
         await loadDashboard();
       }catch(err){
