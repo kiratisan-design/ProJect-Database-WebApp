@@ -329,22 +329,6 @@
   <a href="index.html" class="back-link">← กลับไปหน้าเข้าสู่ระบบ</a>
 </div>
 
-<details class="config" id="configBox">
-  <summary>⚙ ตั้งค่าการเชื่อมต่อ Supabase (กดครั้งแรกเท่านั้น)</summary>
-  <div class="config-body">
-    <div class="field" style="margin-bottom:0;">
-      <label>Project URL</label>
-      <input type="text" id="supaUrl" placeholder="https://xxxxxxxx.supabase.co">
-    </div>
-    <div class="field" style="margin-bottom:0;">
-      <label>Anon Public Key</label>
-      <input type="text" id="supaKey" placeholder="eyJhbGciOi...">
-    </div>
-    <button class="btn-small" id="connectBtn" style="align-self:flex-start;">เชื่อมต่อ</button>
-    <div class="msg" id="connectMsg"></div>
-  </div>
-</details>
-
 <main>
 
   <!-- SIGN UP FORM -->
@@ -383,6 +367,10 @@
 </main>
 
 <script>
+// ===== Supabase config (ฝังถาวร) =====
+const SUPABASE_URL = 'https://hzldfsysjnijeandxcho.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6bGRmc3lzam5pamVhbmR4Y2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTEyMzcsImV4cCI6MjEwMTQ2NzIzN30.UlaivCHV6W5XBp2tNS3d2dV7jnY7NUk8thBzW4PhXXw';
+
 let supabaseClient = null;
 const $ = (id) => document.getElementById(id);
 
@@ -391,35 +379,11 @@ function showMsg(el, text, type){
   el.className = 'msg show ' + type;
 }
 
-// โหลดค่า config ที่เคยบันทึกไว้ (ใช้ร่วมกับหน้าอื่นในระบบ)
 try{
-  const u = localStorage.getItem('supaUrl');
-  const k = localStorage.getItem('supaKey');
-  if(u) $('supaUrl').value = u;
-  if(k) $('supaKey').value = k;
-  if(u && k){
-    supabaseClient = window.supabase.createClient(u, k);
-    $('configBox').removeAttribute('open');
-  }
-}catch(e){}
-
-$('connectBtn').addEventListener('click', () => {
-  const url = $('supaUrl').value.trim();
-  const key = $('supaKey').value.trim();
-  const msg = $('connectMsg');
-  if(!url || !key){
-    showMsg(msg, 'กรุณากรอก URL และ Key ให้ครบ', 'err');
-    return;
-  }
-  try{
-    supabaseClient = window.supabase.createClient(url, key);
-    try{ localStorage.setItem('supaUrl', url); localStorage.setItem('supaKey', key); }catch(e){}
-    showMsg(msg, '✓ เชื่อมต่อสำเร็จ พร้อมสมัครสมาชิกได้แล้ว', 'ok');
-    $('configBox').removeAttribute('open');
-  }catch(e){
-    showMsg(msg, 'เชื่อมต่อไม่สำเร็จ: ' + e.message, 'err');
-  }
-});
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}catch(e){
+  showMsg($('signupMsg'), 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + e.message, 'err');
+}
 
 $('signupForm').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -429,7 +393,7 @@ $('signupForm').addEventListener('submit', async (event) => {
   const passwordConfirm = $('regPasswordConfirm').value;
 
   if(!supabaseClient){
-    showMsg(msg, 'กรุณาเชื่อมต่อ Supabase ก่อน (เปิดเมนู ⚙ ตั้งค่าการเชื่อมต่อด้านบน)', 'err');
+    showMsg(msg, 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ กรุณาลองรีเฟรชหน้าใหม่', 'err');
     return;
   }
   if(password.length < 6){

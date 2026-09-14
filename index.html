@@ -512,10 +512,6 @@
   <div class="step-title" id="authTitle">เข้าสู่ระบบ</div>
   <div class="sub" style="margin:6px 0 16px;" id="authSub">กรุณาเข้าสู่ระบบก่อนใช้งานระบบบันทึกข้อมูล</div>
 
-  <div id="connectPrompt" style="display:none; padding:14px 16px; background:var(--bark-light); border:1px dashed var(--bark); border-radius:10px; font-size:13.5px; color:var(--ink-soft); margin-bottom:16px;">
-    ยังไม่ได้เชื่อมต่อฐานข้อมูล กรุณาเปิด "⚙ ตั้งค่าการเชื่อมต่อ Supabase" ด้านล่างและกดเชื่อมต่อก่อน จึงจะเข้าสู่ระบบได้
-  </div>
-
   <form id="authForm">
     <div class="field">
       <label for="authEmail">อีเมล</label>
@@ -534,18 +530,12 @@
 </section>
 
 <details class="config" id="configBox">
-  <summary>⚙ ตั้งค่าการเชื่อมต่อ Supabase (กดครั้งแรกเท่านั้น)</summary>
+  <summary>⚙ ตั้งค่า</summary>
   <div class="config-body">
     <div class="field">
-      <label>Project URL</label>
-      <input type="text" id="supaUrl" placeholder="https://xxxxxxxx.supabase.co">
+      <label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="reuseIdsCheckbox" style="width:auto;margin:0;"> ใช้หมายเลขที่ถูกลบกลับมาอัตโนมัติ (Reuse deleted IDs)</label>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">ถ้าเลือก: Auto จะมอบหมายหมายเลขที่ว่าง (เช่น A002) แทนการข้ามไปเลขถัดไป</div>
     </div>
-    <div class="field">
-      <label>Anon Public Key</label>
-      <input type="text" id="supaKey" placeholder="eyJhbGciOi...">
-    </div>
-    <button class="btn-small" id="connectBtn" style="align-self:flex-start;">เชื่อมต่อ</button>
-    <div class="msg" id="connectMsg"></div>
   </div>
 </details>
 
@@ -677,6 +667,10 @@
 </main>
 
 <script>
+// ===== Supabase config (ฝังถาวร) =====
+const SUPABASE_URL = 'https://hzldfsysjnijeandxcho.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6bGRmc3lzam5pamVhbmR4Y2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTEyMzcsImV4cCI6MjEwMTQ2NzIzN30.UlaivCHV6W5XBp2tNS3d2dV7jnY7NUk8thBzW4PhXXw';
+
 let supabaseClient = null;
 let speciesData = [];
 let treesData = [];
@@ -685,22 +679,10 @@ let sessionLog = [];
 
 const $ = (id) => document.getElementById(id);
 
-// Insert reuse-IDs checkbox into config UI if not present and persist setting
+// Reuse-IDs checkbox: persist setting only (checkbox itself is static in HTML)
 (function(){
-  const container = document.querySelector('.config-body');
-  if(!container) return;
-  if(!document.getElementById('reuseIdsCheckbox')){
-    const div = document.createElement('div');
-    div.className = 'field';
-    div.innerHTML = `
-      <label style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="reuseIdsCheckbox" style="width:auto;margin:0;"> ใช้หมายเลขที่ถูกลบกลับมาอัตโนมัติ (Reuse deleted IDs)</label>
-      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">ถ้าเลือก: Auto จะมอบหมายหมายเลขที่ว่าง (เช่น A002) แทนการข้ามไปเลขถัดไป</div>
-    `;
-    const connectBtn = document.getElementById('connectBtn');
-    if(connectBtn) container.insertBefore(div, connectBtn);
-    else container.appendChild(div);
-  }
   const cb = document.getElementById('reuseIdsCheckbox');
+  if(!cb) return;
   try{
     const stored = localStorage.getItem('reuseIds');
     cb.checked = stored === null ? true : (stored === 'true');
@@ -708,35 +690,7 @@ const $ = (id) => document.getElementById(id);
   cb.addEventListener('change', () => { try{ localStorage.setItem('reuseIds', cb.checked); }catch(e){} });
 })();
 
-// ---------- เชื่อมต่อ ----------
-$('connectBtn').addEventListener('click', async () => {
-  const url = $('supaUrl').value.trim();
-  const key = $('supaKey').value.trim();
-  const msg = $('connectMsg');
-
-  if(!url || !key){
-    showMsg(msg, 'กรุณากรอก URL และ Key ให้ครบ', 'err');
-    return;
-  }
-
-  try{
-    supabaseClient = window.supabase.createClient(url, key);
-    try{ localStorage.setItem('supaUrl', url); localStorage.setItem('supaKey', key); }catch(e){}
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if(session) await startAuthenticatedApp(session);
-    else {
-      enableLoginForm();
-      showMsg($('authMsg'), 'เชื่อมต่อแล้ว กรุณาเข้าสู่ระบบ', 'ok');
-      showMsg(msg, 'เชื่อมต่อสำเร็จ กรุณา Login', 'ok');
-    }
-  }catch(e){
-    logError(e, 'connect');
-    showMsg(msg, 'เชื่อมต่อไม่สำเร็จ: ' + e.message, 'err');
-  }
-});
-
 function enableLoginForm(){
-  $('connectPrompt').style.display = 'none';
   $('authEmail').disabled = false;
   $('authPassword').disabled = false;
   $('loginBtn').disabled = false;
@@ -744,13 +698,11 @@ function enableLoginForm(){
 
 async function startAuthenticatedApp(session){
   $('authForm').style.display = 'none';
-  $('connectPrompt').style.display = 'none';
   $('userEmailLabel').textContent = session.user.email || 'เข้าสู่ระบบแล้ว';
   $('userBar').style.display = 'flex';
   showMsg($('authMsg'), 'เข้าสู่ระบบแล้ว: ' + (session.user.email || ''), 'ok');
   await loadSpecies();
   await loadZones();
-  showMsg($('connectMsg'), '✓ เชื่อมต่อและเข้าสู่ระบบสำเร็จ', 'ok');
   $('configBox').removeAttribute('open');
   $('dashLinkWrap').style.display = 'block';
   $('appMain').style.display = 'flex';
@@ -787,35 +739,19 @@ $('logoutBtn').addEventListener('click', async () => {
   showMsg($('authMsg'), 'ออกจากระบบแล้ว', 'ok');
 });
 
-// ---------- เชื่อมต่ออัตโนมัติเมื่อโหลดหน้า (ถ้าเคยตั้งค่าไว้แล้ว) ----------
+// ---------- เชื่อมต่อ Supabase อัตโนมัติเมื่อโหลดหน้า ----------
 (async function autoConnectOnLoad(){
-  let url = '', key = '';
   try{
-    url = localStorage.getItem('supaUrl') || '';
-    key = localStorage.getItem('supaKey') || '';
-  }catch(e){}
-
-  if(url && key){
-    $('supaUrl').value = url;
-    $('supaKey').value = key;
-    try{
-      supabaseClient = window.supabase.createClient(url, key);
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if(session){
-        await startAuthenticatedApp(session);
-      }else{
-        enableLoginForm();
-      }
-    }catch(e){
-      logError(e, 'autoConnect');
-      $('configBox').setAttribute('open', '');
-      $('connectPrompt').style.display = 'block';
-      showMsg($('connectMsg'), 'เชื่อมต่ออัตโนมัติไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า: ' + e.message, 'err');
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if(session){
+      await startAuthenticatedApp(session);
+    }else{
+      enableLoginForm();
     }
-  }else{
-    // ยังไม่เคยตั้งค่า Supabase มาก่อน — เปิดกล่องตั้งค่าให้เลย และแสดงข้อความแจ้งเตือนในกล่อง login
-    $('configBox').setAttribute('open', '');
-    $('connectPrompt').style.display = 'block';
+  }catch(e){
+    logError(e, 'autoConnect');
+    showMsg($('authMsg'), 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + e.message, 'err');
   }
 })();
 

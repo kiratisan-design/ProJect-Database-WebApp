@@ -296,23 +296,7 @@
       </div>
     </header>
 
-    <div class="card">
-      <details open>
-        <summary>⚙ ตั้งค่าการเชื่อมต่อ Supabase</summary>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
-          <div style="flex:1;min-width:200px;">
-            <label style="margin-bottom:7px;">Project URL</label>
-            <input id="supaUrl2" type="text" placeholder="https://xxxx.supabase.co">
-          </div>
-          <div style="flex:1;min-width:200px;">
-            <label style="margin-bottom:7px;">Anon Key</label>
-            <input id="supaKey2" type="text" placeholder="anon key">
-          </div>
-          <button id="connectBtn2" class="btn" style="margin-bottom:0;">เชื่อมต่อ</button>
-        </div>
-        <div id="connectMsg2" class="msg-text" style="margin-top:10px;"></div>
-      </details>
-    </div>
+    <div id="connectMsg2" class="msg-text" style="margin:0 0 6px;"></div>
 
     <div class="card" id="authBox2">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
@@ -404,6 +388,10 @@
   </div>
 
   <script>
+    // ===== Supabase config (ฝังถาวร) =====
+    const SUPABASE_URL = 'https://hzldfsysjnijeandxcho.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6bGRmc3lzam5pamVhbmR4Y2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTEyMzcsImV4cCI6MjEwMTQ2NzIzN30.UlaivCHV6W5XBp2tNS3d2dV7jnY7NUk8thBzW4PhXXw';
+
     const $ = id => document.getElementById(id);
     let supabaseClient2 = null;
     let measuresRaw = [];
@@ -413,24 +401,15 @@
     let zoneRows = [];
     let measureIdCol = 'รหัสการวัด'; // ชื่อคอลัมน์รหัสหลักของตาราง การวัด (ตรวจสอบอัตโนมัติใน loadDashboard)
 
-    if(localStorage.getItem('supaUrl')) $('supaUrl2').value = localStorage.getItem('supaUrl');
-    if(localStorage.getItem('supaKey')) $('supaKey2').value = localStorage.getItem('supaKey');
-
-    $('connectBtn2').addEventListener('click', async () => {
-      const url = $('supaUrl2').value.trim();
-      const key = $('supaKey2').value.trim();
+    async function connectSupabase(){
       const msg = $('connectMsg2');
-      msg.textContent = '';
-      msg.className = 'msg-text';
-      if(!url || !key){ msg.textContent = 'กรุณากรอก URL และ Key ให้ครบ'; msg.style.color='var(--err)'; return; }
       try{
-        supabaseClient2 = window.supabase.createClient(url, key);
-        try{ localStorage.setItem('supaUrl', url); localStorage.setItem('supaKey', key); }catch(e){}
+        supabaseClient2 = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const { data: { session } } = await supabaseClient2.auth.getSession();
         if(session) await startAuthenticatedDashboard(session);
-        else { $('authBox2').style.display = 'block'; msg.textContent = 'เชื่อมต่อสำเร็จ กรุณา Login'; msg.style.color='var(--ok)'; }
-      }catch(e){ msg.textContent = 'เชื่อมต่อไม่สำเร็จ: ' + e.message; msg.style.color='var(--err)'; }
-    });
+        else { $('authBox2').style.display = 'block'; }
+      }catch(e){ msg.textContent = 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + e.message; msg.style.color='var(--err)'; }
+    }
 
     async function startAuthenticatedDashboard(session){
       $('authBox2').style.display = 'block';
@@ -610,9 +589,7 @@
     }
 
     window.addEventListener('load', () => {
-      const u = localStorage.getItem('supaUrl');
-      const k = localStorage.getItem('supaKey');
-      if(u && k){ $('supaUrl2').value = u; $('supaKey2').value = k; $('connectBtn2').click(); }
+      connectSupabase();
     });
 
     // ---------- แก้ไขข้อมูล (Edit) ----------
